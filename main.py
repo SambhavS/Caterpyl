@@ -12,6 +12,7 @@ Todo: -type checking
 
 ##############################
 
+# Globals
 VAR_CHARS = string_lib.ascii_letters + string_lib.digits + "_"
 SPECIAL_CHARS  = "(){;}"
 DIGITS = string_lib.digits
@@ -45,6 +46,8 @@ class Tkn:
     floatx = "FLOAT"
     charx = "CHAR"
     constants = (intx, floatx, charx)
+
+    get_type_keyword = {intx: intkey, floatkey: floatx, charx: charkey}
 
 def is_float(token):
     try:
@@ -133,12 +136,13 @@ class Body:
             attach(self, statement)
         
 class Assign:
-    def __init__(self, var_name, val):
+    def __init__(self, var_name, data_type, exp):
         self.children = []
         attach(self, var_name)
-        attach(self, val)
+        attach(self, exp)
+        self.data_type = data_type
         self.var_name = var_name
-        self.val = val
+        self.exp = exp
 
 class Const:
     def __init__(self, val, val_type):
@@ -155,13 +159,13 @@ class Var:
     def __init__(self, var_name):
         self.var_name = var_name
 
-class Operation:
-    def __init__(self, op_name, exp1, exp2):
+class Expression:
+    def __init__(self, op_name, oper1, oper2):
         self.children = []
-        self.exp1 = exp1
-        self.exp2 = exp2
-        attach(self, exp1)
-        attach(self, exp2)
+        self.oper1 = oper1
+        self.oper2 = oper2
+        attach(self, oper1)
+        attach(self, oper2)
         self.op_name = op_name
 
 
@@ -174,7 +178,7 @@ def attach(parent, child):
     parent.children.append(child)
 
 def check(val, exp, msg):
-    if val != exp:
+    if tok_type(val) != exp:
         raise Exception(msg)
 
 def tokenize(string):
@@ -192,29 +196,26 @@ def tokenize(string):
     return [t.strip() for t in tokens if t.strip()]        
 
 def parse_statements(tokens, ind):
-    check(tok_type(tokens[ind]), Tkn.lbrack, "missing opening bracket")
+    check(tokens[ind], Tkn.lbrack, "missing opening bracket")
     ind += 1
     statements = []
-    while tokens[ind] != "}":
+    while tok_type(tokens[ind]) != Tkn.rbrack:
         if ind >= len(tokens):
-            print("Syntax Error")
-            return
+            raise Exception("Syntax Error")
         statement_tokens = []
-        while tok_type(tokens[ind]) != Tkn.semicolon:
+        while not statement_tokens or tok_type(tokens[ind-1]) != Tkn.semicolon:
             statement_tokens.append(tokens[ind])
             ind += 1
-        statement, _ = sub_AST(statement_tokens, 0)
+        statement, _ = sub_AST(statement_tokens, 0, is_statement=True)
         statements.append(statement)
-        ind += 1
-    ind += 1
-    return statements, ind
+    return statements, ind+1
 
 def expression_AST(tokens, ind):
     final_ind = ind
     tok_list = []
     p_lev = 0
+    # Find ending index of overall expression
     while tok_type(tokens[final_ind]) is not Tkn.semicolon: 
-        """REFACTOR VERY UGLY"""
         curr_type = tok_type(tokens[final_ind])
         if curr_type is Tkn.lparen:
             p_lev -=1
@@ -237,7 +238,7 @@ def expression_AST(tokens, ind):
             operator = tok_list[lst_ind]
             lst_ind += 1
             second_expression, _ = expression_AST(tokens, ind + lst_ind)
-            return Operation(op_name = operator, exp1=constant, exp2=second_expression), final_ind
+            return Expression(op_name = operator, oper1=constant, oper2=second_expression), final_ind
         else:
             raise Exception("Constant followed by nonterminary token that is not nonbinary operator")
 
@@ -257,11 +258,10 @@ def expression_AST(tokens, ind):
             operator = tok_type(tok_list[lst_ind])
             expression1, _ = expression_AST(tokens, ind+1)
             expression2, _ = expression_AST(tokens, ind+lst_ind)
-            return Operation(op_name=Operation, exp1=expression1, exp2=expression2), final_ind
-    print(tokens, ind, first_tkn_type)
+            return Expression(op_name=operator, oper1=expression1, oper2=expression2), final_ind
 
 
-def sub_AST(tokens, ind):
+def sub_AST(tokens, ind, is_statement=False):
     root = tokens[ind]
     root_type = tok_type(root)
 
@@ -269,10 +269,10 @@ def sub_AST(tokens, ind):
         """Special Language Construct"""
         if root_type is Tkn.ifx:
             ind += 1
-            check(tok_type(tokens[ind]), Tkn.lparen, "if should be followed by '('")
+            check(tokens[ind], Tkn.lparen, "if should be followed by '('")
             ind += 1
             expression, ind = expression_AST(tokens, ind)
-            check(tok_type(tokens[ind]), Tkn.rparen, "missing closing parenthesis")
+            check(tokens[ind], Tkn.rparen, "missing closing parenthesis")
             ind += 1
             true_body, ind = parse_statements(tokens, ind)
             if tokens[ind] == "else":
@@ -287,26 +287,28 @@ def sub_AST(tokens, ind):
             subtree = Return(ret_expression)
 
     elif root_type in Tkn.type_keys:
-        """Function Declaration"""
-        ret_type = root
+        type_dec = root
         ind += 1
-        func_name = tokens[ind]
-        ind += 1
-        check(tok_type(tokens[ind]), Tkn.lparen, "function name should be followed by '('")
-        ind += 1
-        check(tok_type(tokens[ind]), Tkn.rparen, "function name should end with a')'")
-        ind += 1
-        statements, ind = parse_statements(tokens, ind)
-        subtree = Func(ret_type=ret_type, func_name=func_name, body=Body(statements))
+        if is_statement:
+            """ Variable Assignment -- needs type checking"""
+            check(tokens[ind], Tkn.var, "Type declaration should be followed by var name")
+            variable = Var(root)
+            ind += 1
+            check(tokens[ind], Tkn.equal, "Missing = after variable name")
+            ind += 1
+            expression, ind = expression_AST(tokens, ind)
+            subtree = Assign(var_name=variable, data_type=type_dec, exp=expression)
+        else:
+            """Function Declaration -- needs type checking"""
+            func_name = tokens[ind]
+            ind += 1
+            check(tokens[ind], Tkn.lparen, "Function name should be followed by '('")
+            ind += 1
+            check(tokens[ind], Tkn.rparen, "Function name should end with a')'")
+            ind += 1
+            statements, ind = parse_statements(tokens, ind)
+            subtree = Func(ret_type=type_dec, func_name=func_name, body=Body(statements))
 
-    elif root_type is Tkn.var:
-        """ Variable Assignment"""
-        variable = Var(root)
-        ind += 1
-        check(tok_type(tokens[ind]), Tkn.equal, "missing = after variable name")
-        ind += 1
-        expression, ind = expression_AST(tokens, ind)
-        subtree = Assign(var_name=variable, val=expression)
     return subtree, ind
 
 def main_AST(program):
@@ -318,21 +320,17 @@ def main_AST(program):
         subtrees.append(subtree)
     return Prog(subtrees)
 
-def print_tree(tree):
-    print("Parent: ", tree.__class__.__name__)
+def print_tree(tree, depth=0):
+    dt_str = " ({})".format(tree.data_type) if hasattr(tree, "data_type") else ""
+    op_str = " ({})".format(tree.op_name) if hasattr(tree, "op_name") else ""
+    val_str = " ({})".format(tree.val) if hasattr(tree, "val") else ""
+    print("{}{}{}{}{}".format("---"*depth, tree.__class__.__name__, op_str, val_str, dt_str))
     if hasattr(tree, "children"):
-        children = tree.children
+        children = tree.children            
         for child in children:
-            print("-Child: {}".format(child.__class__.__name__)) 
-            if hasattr(child, "val"):
-                print("  Val: {}".format(child.val))
-            if hasattr(child, "op_name"):
-                print("  Operator: {}".format(child.op_name))
-        for child in children:
-            print_tree(child)
+            print_tree(child, depth+1)
 
-#print(tokenize("5 + (10 + 10);"))
-print_tree(expression_AST(tokenize("5 + 10;"), 0)[0])
+print_tree(main_AST("int main(){ int c = 3; return 5 + 5; } int prn() { int x = 10;}"))
 
 
 
