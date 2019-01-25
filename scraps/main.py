@@ -6,7 +6,7 @@ TODO:
 -namespace for variables vs function?
 
 Program Summary:
-We go through the program, checking for independent trees. Each tree is a
+We go through the program, checking for independent trees. Each tree is a 
 return statement, an if/else statement, a variable assignment, or a function declaration.
 We should distinguish between a series of statements, a single statement, and an expression.
 
@@ -27,94 +27,88 @@ def print_tree(tree, depth=0):
         tree, "data_type") else ""
     op_str = " ({})".format(tree.op_name) if hasattr(tree, "op_name") else ""
     val_str = " ({})".format(tree.val) if hasattr(tree, "val") else ""
-    print("{}{}{}{}{}".format("{}{}".format("   " * depth, "|"),
+    print("{}{}{}{}{}".format("{}{}".format("   "*depth, "|"),
                               tree.__class__.__name__, op_str, val_str, dt_str))
     if hasattr(tree, "children"):
         children = tree.children
         for child in children:
-            print_tree(child, depth + 1)
+            print_tree(child, depth+1)
 
 
 def main_AST(program):
     tokens = tokenize(program)
-    subtrees = parse_statements(tokens, func_dec=True)
+    subtrees, _ = parse_statements(tokens, 0, func_dec=True)
     return Prog(subtrees)
 
 
-def parse_statements(tokens, func_dec=False):
+def parse_statements(tokens, ind, func_dec=False):
     statements = []
-    while len(tokens) and typ(tokens[0]) != Tkn.rbrack:
-        statement = statement_AST(tokens, func_dec)
+    while ind != len(tokens) and typ(tokens[ind]) != Tkn.rbrack:
+        if ind >= len(tokens):
+            raise Exception("Syntax Error")
+        statement, ind = statement_AST(tokens, ind, func_dec)
+
         statements.append(statement)
     # Parse `}`
-    if tokens:
-        tokens.pop(0)
-    return statements
+    ind += 1
+    return statements, ind
 
 
-def statement_AST(tokens, func_dec=False):
-    root = tokens[0]
+def statement_AST(tokens, ind, func_dec=False):
+    root = tokens[ind]
     root_type = typ(root)
     if root_type in Tkn.prog_keywords:
         """Special Language Construct"""
         if root_type is Tkn.ifx:
-            check_skip(tokens, Tkn.ifx, "Check `if`")
-            check_skip(tokens, Tkn.lparen, "Check `(`")
-            expression = dropped_exp_AST(tokens)
-            check_skip(tokens, Tkn.rparen, "Check `)`")
-            check_skip(tokens, Tkn.lbrack, "Check `{`")
-            true_statements = parse_statements(tokens)
-            if tokens[0] == "else":
-                check_skip(tokens, Tkn.elsex, "Check `else`")
-                check_skip(tokens, Tkn.lbrack, "Check `{`")
-                else_statements = parse_statements(tokens)
+            ind = check_skip(tokens[ind], ind, Tkn.ifx, "Check `if`")
+            ind = check_skip(tokens[ind], ind, Tkn.lparen, "Check `(`")
+            expression, ind = expression_AST(tokens, ind)
+            ind = check_skip(tokens[ind], ind, Tkn.rparen, "Check `)`")
+            ind = check_skip(tokens[ind], ind, Tkn.lbrack, "Check `{`")
+            true_statements, ind = parse_statements(tokens, ind)
+            if tokens[ind] == "else":
+                ind = check_skip(tokens[ind], ind, Tkn.elsex, "Check `else`")
+                ind = check_skip(tokens[ind], ind, Tkn.lbrack, "Check `{`")
+                else_statements, ind = parse_statements(tokens, ind)
             else:
-                check_skip(tokens, Tkn.rbrack, "Check `}`")
+                ind = check_skip(tokens[ind], Tkn.rbrack, "Check `}`")
                 else_statements = None
             subtree = If(cond=expression, true_body=Body(
                 true_statements), else_body=Body(else_statements))
         elif root_type is Tkn.returnx:
-            check_skip(tokens, Tkn.returnx, "Check `return`")
-            ret_expression = dropped_exp_AST(tokens)
-            check_skip(tokens, Tkn.semicolon, "Check `;`")
+            ind = check_skip(tokens[ind], ind, Tkn.returnx, "Check `return`")
+            ret_expression, ind = expression_AST(tokens, ind)
+            ind = check_skip(tokens[ind], ind, Tkn.semicolon, "Check `;`")
             subtree = Return(ret_expression)
 
     elif root_type in Tkn.type_keys:
         type_dec = root
-        check_skip(tokens, Tkn.type_keys, "Check type keyword")
+        ind = check_skip(tokens[ind], ind, Tkn.type_keys, "Check type keyword")
         if func_dec:
             """ Function Declaration -- needs type checking"""
-            check_skip(tokens, Tkn.var, "Check function var name")
-            func_name = tokens[0]
-            check_skip(tokens, Tkn.lparen, "Check `(`")
-            check_skip(tokens, Tkn.rparen, "Check `)`")
-            check_skip(tokens, Tkn.lbrack, "Check `{`")
-            statements = parse_statements(tokens, func_dec=False)
+            ind = check_skip(tokens[ind], ind, Tkn.var,
+                             "Check function var name")
+            func_name = tokens[ind]
+            ind = check_skip(tokens[ind], ind, Tkn.lparen, "Check `(`")
+            ind = check_skip(tokens[ind], ind, Tkn.rparen, "Check `)`")
+            ind = check_skip(tokens[ind], ind, Tkn.lbrack, "Check `{`")
+            statements, ind = parse_statements(tokens, ind, func_dec=False)
             subtree = Func(ret_type=type_dec,
                            func_name=func_name, body=Body(statements))
         else:
             """ Variable Assignment -- needs type checking"""
             variable = Var(root)
-            check_skip(tokens, Tkn.var, "Check var name")
-            check_skip(tokens, Tkn.equal, "Check `=`")
-            expression = dropped_exp_AST(tokens)
-            check_skip(tokens, Tkn.semicolon, "Check `;`")
+            ind = check_skip(tokens[ind], ind, Tkn.var, "Check var name")
+            ind = check_skip(tokens[ind], ind, Tkn.equal, "Check `=`")
+            expression, ind = expression_AST(tokens, ind)
+            ind = check_skip(tokens[ind], ind, Tkn.semicolon, "Check `;`")
             subtree = Assign(var_name=variable,
                              data_type=type_dec, exp=expression)
-    return subtree
 
-def dropped_exp_AST(tokens):
-    print()
-    print(tokens)
-    exp_ast, drops = expression_AST(tokens)
-    for i in range(drops):
-        tokens.pop(0)
-    print("Drops", drops)
-    print(tokens)
-    print()
-    return exp_ast
+    return subtree, ind
 
-def expression_AST(tokens, ind=0):
+
+def expression_AST(tokens, ind):
     """Returns an AST representing the expression starting at the given index"""
     if typ(tokens[ind]) is Tkn.lparen:
         final_ind = fin_ind(tokens, ind)
@@ -149,8 +143,7 @@ def expression_AST(tokens, ind=0):
             return Expression(op_name=operator, oper1=val, oper2=second_exp), final_ind
         elif typ(tokens[final_ind]) in [Tkn.semicolon, Tkn.rparen]:
             return val, final_ind
-        else:
-            print(tokens[final_ind])
+
     elif typ(tokens[ind]) in Tkn.constants or typ(tokens[ind]) is Tkn.var:
         val = Const(tokens[ind], typ(tokens[ind])) if typ(
             tokens[ind]) in Tkn.constants else Var(tokens[ind])
@@ -162,7 +155,7 @@ def expression_AST(tokens, ind=0):
             return Expression(op_name=operator, oper1=val, oper2=second_exp), ind
         elif typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen]:
             return val, ind
-    
+
 
 def seq_to_tree(sequence):
     """Takes in a sequence of operators and objects and makes an expression tree"""
@@ -206,18 +199,13 @@ def tokenize(string):
     return [t.strip() for t in tokens if t.strip()]
 
 
-def check_skip(tokens, exp, msg):
+def check_skip(val, ind, exp, msg):
     """Checks that value matches a certain type and skips it"""
-    if typ(tokens[0]) not in exp:
-        raise Exception("{} but got {}".format(msg, tokens[0]))
-    tokens.pop(0)
+    if typ(val) not in exp:
+        raise Exception(msg + " but got {}".format(val))
+    return ind + 1
 
 
 # Call test run
-test_run("ex.c")
-#tokens = tokenize("1 + (2 + (3 + 4)) + 5;")
-#x, y = expression_AST(tokens, 0)
-#print_tree(x)
-#print(y)
-#print(tokens[y])
-
+# test_run("ex.c")
+print_tree(expression_AST(tokenize("(5 + (2 + 4 + (2 + 3) + 1 + (2 + 3)));"), 0)[0])

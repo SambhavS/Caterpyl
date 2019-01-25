@@ -104,14 +104,9 @@ def statement_AST(tokens, func_dec=False):
     return subtree
 
 def dropped_exp_AST(tokens):
-    print()
-    print(tokens)
     exp_ast, drops = expression_AST(tokens)
     for i in range(drops):
         tokens.pop(0)
-    print("Drops", drops)
-    print(tokens)
-    print()
     return exp_ast
 
 def expression_AST(tokens, ind=0):
@@ -213,11 +208,4 @@ def check_skip(tokens, exp, msg):
     tokens.pop(0)
 
 
-# Call test run
 test_run("ex.c")
-#tokens = tokenize("1 + (2 + (3 + 4)) + 5;")
-#x, y = expression_AST(tokens, 0)
-#print_tree(x)
-#print(y)
-#print(tokens[y])
-
