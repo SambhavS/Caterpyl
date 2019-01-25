@@ -79,7 +79,6 @@ def statement_AST(tokens, ind, func_dec=False):
         ind = check_skip(tokens[ind], ind, Tkn.type_keys, "Check type keyword")
         if func_dec:
             """ Function Declaration -- needs type checking"""
-            print(tokens[ind])
             ind = check_skip(tokens[ind], ind, Tkn.var, "Check function var name")
             func_name = tokens[ind]
             ind = check_skip(tokens[ind], ind, Tkn.lparen, "Check `(`")
@@ -93,111 +92,81 @@ def statement_AST(tokens, ind, func_dec=False):
             ind = check_skip(tokens[ind], ind, Tkn.var, "Check var name")
             ind = check_skip(tokens[ind], ind, Tkn.equal, "Check `=`")
             expression, ind = expression_AST(tokens, ind)
+            ind = check_skip(tokens[ind], ind, Tkn.semicolon, "Check `;`")
             subtree = Assign(var_name=variable, data_type=type_dec, exp=expression)
+
     return subtree, ind
 
-def expression_AST(tokens, ind):
-    start_ind = ind
-    tok_list = []
-    """This part finds the ending index. 
-    This means that we find one extra parenthesis or semicolon.
-
-    We have the following cases:
-    1) We just find a constant - we return it
-    2) We find a constant followed by an operator - we return an
-     expression with our findings and recursively figure out the rest
-    
-    if singular expression - return it
-    else: return Expression(first, oper, rest)
-    don't find final index
-
-    
-
-
-
-    """
-    fst_val = tokens[ind]
-    fst_type = typ(tokens[ind])
-    if fst_type in Tkn.constants or fst_type in Tkn.var:
-        expression = Var(tokens[ind]) if first_tkn_type is Tkn.var else Const(tokens[ind], fst_type)
-        ind += 1
-        if typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen]:
-            return expression, ind
-        elif typ(tokens[ind]) in Tkn.binop:
-            operator = tokens[ind]
-            ind = check_skip(tokens[ind], ind, Tkn.binop, "Check binary operator")
-            second_expression, ind = expression_AST(tokens, ind)
-            compound_expression = Expression(op_name = operator, oper1=expression, oper2=second_expression)
-            return compound_expression, ind
-        else:
-            raise Exception("Constant followed by nonterminary token that is not nonbinary operator")
-    elif fst_type is Tkn.lparen:
-        second_ind = 0
-        p_lev = -1
-        while p_lev < 0:
-            if typ(tok_list[lst_ind]) is Tkn.rparen:
-                p_lev += 1
-            elif typ(tok_list[lst_ind]) is Tkn.lparen:
-                p_lev -= 1
-            second_ind += 1
-
-        operator = typ(tok_list[lst_ind])
-        paren_expression, ind = expression_AST(tokens, ind+1)
-        #Single parenthetical operation
-        if typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen]:
-            return paren_expression, ind
-        #Followed by additional expression
-        elif typ(tokens[ind] in Tkn.binop:
-            operator = tokens[ind]
-            ind = check_skip(tokens[ind], ind, Tkn.binop, "Check binary operator")
-            second_expression, ind = expression_AST(tokens, ind)
-            compound_expression = Expression(op_name=operator, oper1=expression1, oper2=expression2)
+def expression_AST(tokens, ind):    
+    if typ(tokens[ind]) is Tkn.lparen:
+        final_ind = fin_ind(tokens, ind)
+        children = []
+        i = ind+1
+        while i < final_ind:
+            tok_type = typ(tokens[i])
+            if tok_type in Tkn.constants or tok_type is Tkn.var or tok_type is Tkn.binop:
+                if tok_type in Tkn.constants: 
+                    val = Const(tokens[i], tok_type) 
+                elif tok_type is Tkn.var:
+                    val = Var(tokens[i])
+                elif tok_type is Tkn.binop:
+                    val = tokens[i]
+                children.append(val)
+                i += 1
+            elif tok_type is Tkn.lparen:
+                expression, _ = expression_AST(tokens, i)
+                children.append(expression)
+                i = fin_ind(tokens, i) + 1                
+        #Binary operators must alternate
+        if len(children) == 1:
+            return children[0], i
+        if len(children)%2 == 0:
+            raise Exception("Bad expression")
+        val = seq_to_tree(children)
+        final_ind += 1
+        if typ(tokens[final_ind]) is Tkn.binop:
+            operator = tokens[final_ind]
+            final_ind += 1
+            second_exp, final_ind = expression_AST(tokens, final_ind)
+            return Expression(op_name=operator, oper1=val, oper2=second_exp), final_ind
+        elif typ(tokens[final_ind]) in [Tkn.semicolon, Tkn.rparen]:
+            return val, final_ind
         
 
-    
+    elif typ(tokens[ind]) in Tkn.constants or typ(tokens[ind]) is Tkn.var:
+        val = Const(tokens[ind], typ(tokens[ind])) if typ(tokens[ind]) in Tkn.constants else Var(tokens[ind])
+        ind += 1
+        if typ(tokens[ind]) is Tkn.binop:
+            operator = tokens[ind]
+            ind += 1
+            second_exp, ind = expression_AST(tokens, ind)
+            return Expression(op_name=operator, oper1=val, oper2=second_exp), ind
+        elif typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen]:
+            return val, ind
+
+def seq_to_tree(sequence):
+    if len(sequence) == 3:
+        return Expression(op_name=sequence[1], oper1=sequence[0], oper2=sequence[-1])
+    return Expression(op_name=sequence[1], oper1=sequence[0], oper2=seq_to_tree(sequence[2:]))
+
+def fin_ind(tokens, start):
+    final_ind = start+1
+    if typ(tokens[start]) in Tkn.constants or typ(tokens[start]) is Tkn.var:
+        return final_ind
+    p_lvl = 1
+    while True:
+        tok_type = typ(tokens[final_ind])
+        if tok_type is Tkn.lparen:
+            p_lvl += 1
+        if tok_type is Tkn.rparen:
+            p_lvl -= 1
+        if p_lvl == 0 or tok_type is Tkn.semicolon:
+            break
+        final_ind += 1
+    return final_ind
 
 
-    lst_ind = 0
-    first_tkn_type = typ(tok_list[lst_ind])
-    if first_tkn_type in Tkn.constants or first_tkn_type is Tkn.var:
-        if first_tkn_type is Tkn.var:
-            value = Var(tok_list[lst_ind])
-        else:
-            value = Const(tok_list[lst_ind], first_tkn_type)
-        lst_ind += 1
-        if len(tok_list) == 1:
-            expression = value
-        elif typ(tok_list[lst_ind]) is Tkn.binop:
-            operator = tok_list[lst_ind]
-            lst_ind += 1
-            second_expression, _ = expression_AST(tokens, start_ind + lst_ind)
-            expression = Expression(op_name = operator, oper1=value, oper2=second_expression)
-        else:
-            raise Exception("Constant followed by nonterminary token that is not nonbinary operator")
 
-    elif first_tkn_type is Tkn.lparen:
-        lst_ind += 1
-        # We find the first complete expression and parse it
-        p_lev = -1
-        while p_lev < 0:
-            if typ(tok_list[lst_ind]) is Tkn.rparen:
-                p_lev += 1
-            elif typ(tok_list[lst_ind]) is Tkn.lparen:
-                p_lev -= 1
-            lst_ind += 1
-        if len(tok_list) == lst_ind:
-            expression, _ = expression_AST(tokens, start_ind+1)
-        elif typ(tok_list[lst_ind]) is tkn.binop:
-            operator = typ(tok_list[lst_ind])
-            expression1, _ = expression_AST(tokens, start_ind+1)
-            expression2, _ = expression_AST(tokens, start_ind+lst_ind)
-            expression = Expression(op_name=operator, oper1=expression1, oper2=expression2)
-    
-    ind = check_skip(tokens[ind], ind, [Tkn.rparen, Tkn.semicolon], "Check `)` or `;`" )
-    return expression, ind
-
-def get_final_index(tokens, ind):
-    """Finds ending index of expression"""
 
 def tokenize(string):
     """ Returns list of tokens given program as a string"""
@@ -218,9 +187,10 @@ def tokenize(string):
 def check_skip(val, ind, exp, msg):
     """Checks that value matches a certain type and skips it"""
     if typ(val) not in exp:
-        raise Exception(msg)   
+        raise Exception(msg +" but got {}".format(val))   
     return ind + 1
 
 
 # Call test run        
 test_run("ex.c")
+#print_tree(expression_AST(tokenize("(5 + (2 + 4 + (2 + 3) + 1 + (2 + 3)));"), 0)[0])
