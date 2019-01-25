@@ -10,8 +10,7 @@ We go through the program, checking for independent trees. Each tree is a
 return statement, an if/else statement, a variable assignment, or a function declaration.
 We should distinguish between a series of statements, a single statement, and an expression.
 
-We skip non-parsable tokens proactively - that is each function assumes they need not skip any
-tokens and skips any remaining non-parseable ones before returning.
+We skip non-parsable tokens proactively for parse_statements & statement_AST, but not for expression_AST
 """
 
 def test_run(fname):
@@ -58,6 +57,7 @@ def statement_AST(tokens, ind, func_dec=False):
             ind = check_skip(tokens[ind], ind, Tkn.ifx, "Check `if`")
             ind = check_skip(tokens[ind], ind, Tkn.lparen, "Check `(`")
             expression, ind = expression_AST(tokens, ind)
+            ind = check_skip(tokens[ind], ind, Tkn.rparen, "Check `)`")     
             ind = check_skip(tokens[ind], ind, Tkn.lbrack, "Check `{`")     
             true_statements, ind = parse_statements(tokens, ind)
             if tokens[ind] == "else":
@@ -71,6 +71,7 @@ def statement_AST(tokens, ind, func_dec=False):
         elif root_type is Tkn.returnx:
             ind = check_skip(tokens[ind], ind, Tkn.returnx, "Check `return`")
             ret_expression, ind = expression_AST(tokens, ind)
+            ind = check_skip(tokens[ind], ind, Tkn.semicolon, "Check `;`")
             subtree = Return(ret_expression)
 
     elif root_type in Tkn.type_keys:
@@ -105,25 +106,56 @@ def expression_AST(tokens, ind):
     1) We just find a constant - we return it
     2) We find a constant followed by an operator - we return an
      expression with our findings and recursively figure out the rest
+    
+    if singular expression - return it
+    else: return Expression(first, oper, rest)
+    don't find final index
 
-
-
+    
 
 
 
     """
-    p_lev = 0
-    # Find ending index of overall expression
-    while typ(tokens[ind]) is not Tkn.semicolon: 
-        curr_type = typ(tokens[ind])
-        if curr_type is Tkn.lparen:
-            p_lev -=1
-        elif curr_type is Tkn.rparen:
-            p_lev += 1
-        if  p_lev > 0:
-            break
-        tok_list.append(tokens[ind])
+    fst_val = tokens[ind]
+    fst_type = typ(tokens[ind])
+    if fst_type in Tkn.constants or fst_type in Tkn.var:
+        expression = Var(tokens[ind]) if first_tkn_type is Tkn.var else Const(tokens[ind], fst_type)
         ind += 1
+        if typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen]:
+            return expression, ind
+        elif typ(tokens[ind]) in Tkn.binop:
+            operator = tokens[ind]
+            ind = check_skip(tokens[ind], ind, Tkn.binop, "Check binary operator")
+            second_expression, ind = expression_AST(tokens, ind)
+            compound_expression = Expression(op_name = operator, oper1=expression, oper2=second_expression)
+            return compound_expression, ind
+        else:
+            raise Exception("Constant followed by nonterminary token that is not nonbinary operator")
+    elif fst_type is Tkn.lparen:
+        second_ind = 0
+        p_lev = -1
+        while p_lev < 0:
+            if typ(tok_list[lst_ind]) is Tkn.rparen:
+                p_lev += 1
+            elif typ(tok_list[lst_ind]) is Tkn.lparen:
+                p_lev -= 1
+            second_ind += 1
+
+        operator = typ(tok_list[lst_ind])
+        paren_expression, ind = expression_AST(tokens, ind+1)
+        #Single parenthetical operation
+        if typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen]:
+            return paren_expression, ind
+        #Followed by additional expression
+        elif typ(tokens[ind] in Tkn.binop:
+            operator = tokens[ind]
+            ind = check_skip(tokens[ind], ind, Tkn.binop, "Check binary operator")
+            second_expression, ind = expression_AST(tokens, ind)
+            compound_expression = Expression(op_name=operator, oper1=expression1, oper2=expression2)
+        
+
+    
+
 
     lst_ind = 0
     first_tkn_type = typ(tok_list[lst_ind])
