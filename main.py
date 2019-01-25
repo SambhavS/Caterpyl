@@ -98,6 +98,7 @@ def statement_AST(tokens, ind, func_dec=False):
     return subtree, ind
 
 def expression_AST(tokens, ind):    
+    """Returns an AST representing the expression starting at the given index"""
     if typ(tokens[ind]) is Tkn.lparen:
         final_ind = fin_ind(tokens, ind)
         children = []
@@ -145,11 +146,13 @@ def expression_AST(tokens, ind):
             return val, ind
 
 def seq_to_tree(sequence):
+    """Takes in a sequence of operators and objects and makes an expression tree"""
     if len(sequence) == 3:
         return Expression(op_name=sequence[1], oper1=sequence[0], oper2=sequence[-1])
     return Expression(op_name=sequence[1], oper1=sequence[0], oper2=seq_to_tree(sequence[2:]))
 
 def fin_ind(tokens, start):
+    """Returns the index corresponding to the end of an expression"""
     final_ind = start+1
     if typ(tokens[start]) in Tkn.constants or typ(tokens[start]) is Tkn.var:
         return final_ind
@@ -192,5 +195,5 @@ def check_skip(val, ind, exp, msg):
 
 
 # Call test run        
-test_run("ex.c")
-#print_tree(expression_AST(tokenize("(5 + (2 + 4 + (2 + 3) + 1 + (2 + 3)));"), 0)[0])
+#test_run("ex.c")
+print_tree(expression_AST(tokenize("(5 + (2 + 4 + (2 + 3) + 1 + (2 + 3)));"), 0)[0])
