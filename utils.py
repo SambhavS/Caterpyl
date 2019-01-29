@@ -6,6 +6,7 @@ VAR_CHARS = string_lib.ascii_letters + string_lib.digits + "_"
 SPECIAL_CHARS  = "(){;}"
 DIGITS = string_lib.digits
 WHITESPACE = " \n\t"
+ORDERED_BINOPS = ("**", "*", "/", "+", "-", "==", "<=", "!=", ">=", "<", ">")
 
 ################# Tkn Types ###################
 
@@ -80,7 +81,7 @@ def is_var(token):
     return all([c in VAR_CHARS for c in token])
 
 def is_bin_op(token):
-    return token in ("*", "+", "-", "/", "==")
+    return token in ORDERED_BINOPS
 
 
 def attach(parent, child):
@@ -89,28 +90,19 @@ def attach(parent, child):
 
 ########## AST Node Classes ###########
 
+# High Level Nodes
 class Prog:
     def __init__(self, subtrees):
         self.children = []
-        print(subtrees)
         for subtree in subtrees:
             attach(self, subtree)
-class If:
-    def __init__(self, cond, true_body, else_body):
-        self.children = []
-        attach(self, cond)
-        attach(self, true_body)
-        attach(self, else_body)
-        self.cond = cond
-        self.true_body = true_body
-        self.else_body = else_body
 
 class Func:
-    def __init__(self, ret_type, func_name, body):
+    def __init__(self, ret_type, name, body):
         self.children = []
         attach(self, body)
         self.ret_type = ret_type
-        self.func_name = func_name
+        self.name = name
         self.body = body
 
 class Body:
@@ -119,31 +111,8 @@ class Body:
         self.children = []
         for statement in statements:
             attach(self, statement)
-        
-class Assign:
-    def __init__(self, var_name, data_type, exp):
-        self.children = []
-        attach(self, var_name)
-        attach(self, exp)
-        self.data_type = data_type
-        self.var_name = var_name
-        self.exp = exp
 
-class Const:
-    def __init__(self, val, val_type):
-        self.val_type = val_type
-        self.val = val
-
-class Return:
-    def __init__(self, ret_val):
-        self.children = []
-        self.ret_val = ret_val
-        attach(self, ret_val)
-
-class Var:
-    def __init__(self, var_name):
-        self.var_name = var_name
-
+# Expression
 class Expression:
     def __init__(self, op_name, oper1, oper2):
         self.children = []
@@ -152,3 +121,46 @@ class Expression:
         attach(self, oper1)
         attach(self, oper2)
         self.op_name = op_name
+
+# Leaves
+class Const:
+    def __init__(self, val, val_type):
+        self.val_type = val_type
+        self.val = val
+
+class Var:
+    def __init__(self, name=None):
+        self.name = name
+
+# Statements     
+class If:
+    def __init__(self, cond, true_body, else_body):
+        self.children = []
+        attach(self, cond)
+        attach(self, true_body)
+        if else_body.children:
+            attach(self, else_body)
+        self.cond = cond
+        self.true_body = true_body
+        self.else_body = else_body
+
+class Assign:
+    def __init__(self, var_name, exp):
+        self.children = []
+        attach(self, var_name)
+        attach(self, exp)
+        self.var_name = var_name
+        self.exp = exp
+
+class Decl:
+    def __init__(self, type_dec, var):
+        self.children = []
+        attach(self, var)
+        self.type_dec = type_dec
+        self.var = var
+
+class Return:
+    def __init__(self, ret_val):
+        self.children = []
+        self.ret_val = ret_val
+        attach(self, ret_val)

@@ -1,223 +1,213 @@
-from utils import *
+from astgen import *
+import subprocess
+"""
+-type checking
+-how to evaluate expressions
+-fix nonspacing for +
+-first load functions into namespace
+-go through 
+
 
 """
-TODO:
--add type checking
--namespace for variables vs function?
+def print_IL(lines):
+    print()
+    for l in lines:
+        if l[-1] == ":":
+            print(l)
+        else:
+            print("   {}".format(l))
 
-Program Summary:
-We go through the program, checking for independent trees. Each tree is a
-return statement, an if/else statement, a variable assignment, or a function declaration.
-We should distinguish between a series of statements, a single statement, and an expression.
+def print_lst(lst):
+    print()
+    for i in lst:
+        print(i)
 
-We skip non-parsable tokens proactively for parse_statements & statement_AST, but not for expression_AST
-"""
-
-
-def test_run(fname):
-    """ Load and run program"""
+def test(): 
+    fname = "test.c"
     with open(fname) as f:
         contents = f.read()
-        ast = main_AST(contents)
-        print_tree(ast)
+    
+    ast = main_AST(contents)
+    print_tree(ast)
+    
+    interm_lines = ast_to_IL(ast)   
+    print_IL(interm_lines)
+
+    lookup = make_lookup(ast)
+    mem_dict = {var:i for i, var in enumerate(lookup.keys())}
+    
+    assembly = gen_assembly(interm_lines, mem_dict)
+    print_lst(assembly)
 
 
-def print_tree(tree, depth=0):
-    dt_str = " ({})".format(tree.data_type) if hasattr(
-        tree, "data_type") else ""
-    op_str = " ({})".format(tree.op_name) if hasattr(tree, "op_name") else ""
-    val_str = " ({})".format(tree.val) if hasattr(tree, "val") else ""
-    print("{}{}{}{}{}".format("{}{}".format("   " * depth, "|"),
-                              tree.__class__.__name__, op_str, val_str, dt_str))
-    if hasattr(tree, "children"):
-        children = tree.children
-        for child in children:
-            print_tree(child, depth + 1)
 
 
-def main_AST(program):
-    tokens = tokenize(program)
-    subtrees = parse_statements(tokens, func_dec=True)
-    return Prog(subtrees)
 
-
-def parse_statements(tokens, func_dec=False):
-    statements = []
-    while len(tokens) and typ(tokens[0]) != Tkn.rbrack:
-        statement = statement_AST(tokens, func_dec)
-        statements.append(statement)
-    # Parse `}`
-    if tokens:
-        tokens.pop(0)
-    return statements
-
-
-def statement_AST(tokens, func_dec=False):
-    root = tokens[0]
-    root_type = typ(root)
-    if root_type in Tkn.prog_keywords:
-        """Special Language Construct"""
-        if root_type is Tkn.ifx:
-            check_skip(tokens, Tkn.ifx, "Check `if`")
-            check_skip(tokens, Tkn.lparen, "Check `(`")
-            expression = dropped_exp_AST(tokens)
-            check_skip(tokens, Tkn.rparen, "Check `)`")
-            check_skip(tokens, Tkn.lbrack, "Check `{`")
-            true_statements = parse_statements(tokens)
-            if tokens[0] == "else":
-                check_skip(tokens, Tkn.elsex, "Check `else`")
-                check_skip(tokens, Tkn.lbrack, "Check `{`")
-                else_statements = parse_statements(tokens)
-            else:
-                check_skip(tokens, Tkn.rbrack, "Check `}`")
-                else_statements = None
-            subtree = If(cond=expression, true_body=Body(
-                true_statements), else_body=Body(else_statements))
-        elif root_type is Tkn.returnx:
-            check_skip(tokens, Tkn.returnx, "Check `return`")
-            ret_expression = dropped_exp_AST(tokens)
-            check_skip(tokens, Tkn.semicolon, "Check `;`")
-            subtree = Return(ret_expression)
-
-    elif root_type in Tkn.type_keys:
-        type_dec = root
-        check_skip(tokens, Tkn.type_keys, "Check type keyword")
-        if func_dec:
-            """ Function Declaration -- needs type checking"""
-            check_skip(tokens, Tkn.var, "Check function var name")
-            func_name = tokens[0]
-            check_skip(tokens, Tkn.lparen, "Check `(`")
-            check_skip(tokens, Tkn.rparen, "Check `)`")
-            check_skip(tokens, Tkn.lbrack, "Check `{`")
-            statements = parse_statements(tokens, func_dec=False)
-            subtree = Func(ret_type=type_dec,
-                           func_name=func_name, body=Body(statements))
-        else:
-            """ Variable Assignment -- needs type checking"""
-            variable = Var(root)
-            check_skip(tokens, Tkn.var, "Check var name")
-            check_skip(tokens, Tkn.equal, "Check `=`")
-            expression = dropped_exp_AST(tokens)
-            check_skip(tokens, Tkn.semicolon, "Check `;`")
-            subtree = Assign(var_name=variable,
-                             data_type=type_dec, exp=expression)
-    return subtree
-
-def dropped_exp_AST(tokens):
-    print()
-    print(tokens)
-    exp_ast, drops = expression_AST(tokens)
-    for i in range(drops):
-        tokens.pop(0)
-    print("Drops", drops)
-    print(tokens)
-    print()
-    return exp_ast
-
-def expression_AST(tokens, ind=0):
-    """Returns an AST representing the expression starting at the given index"""
-    if typ(tokens[ind]) is Tkn.lparen:
-        final_ind = fin_ind(tokens, ind)
-        children = []
-        i = ind+1
-        while i < final_ind:
-            tok_type = typ(tokens[i])
-            if tok_type in Tkn.constants or tok_type is Tkn.var or tok_type is Tkn.binop:
-                if tok_type in Tkn.constants:
-                    val = Const(tokens[i], tok_type)
-                elif tok_type is Tkn.var:
-                    val = Var(tokens[i])
-                elif tok_type is Tkn.binop:
-                    val = tokens[i]
-                children.append(val)
-                i += 1
-            elif tok_type is Tkn.lparen:
-                expression, _ = expression_AST(tokens, i)
-                children.append(expression)
-                i = fin_ind(tokens, i) + 1
-        # Binary operators must alternate
-        if len(children) == 1:
-            return children[0], i
-        if len(children) % 2 == 0:
-            raise Exception("Bad expression")
-        val = seq_to_tree(children)
-        final_ind += 1
-        if typ(tokens[final_ind]) is Tkn.binop:
-            operator = tokens[final_ind]
-            final_ind += 1
-            second_exp, final_ind = expression_AST(tokens, final_ind)
-            return Expression(op_name=operator, oper1=val, oper2=second_exp), final_ind
-        elif typ(tokens[final_ind]) in [Tkn.semicolon, Tkn.rparen]:
-            return val, final_ind
-        else:
-            print(tokens[final_ind])
-    elif typ(tokens[ind]) in Tkn.constants or typ(tokens[ind]) is Tkn.var:
-        val = Const(tokens[ind], typ(tokens[ind])) if typ(
-            tokens[ind]) in Tkn.constants else Var(tokens[ind])
-        ind += 1
-        if typ(tokens[ind]) is Tkn.binop:
-            operator = tokens[ind]
-            ind += 1
-            second_exp, ind = expression_AST(tokens, ind)
-            return Expression(op_name=operator, oper1=val, oper2=second_exp), ind
-        elif typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen]:
-            return val, ind
     
 
-def seq_to_tree(sequence):
-    """Takes in a sequence of operators and objects and makes an expression tree"""
-    if len(sequence) == 3:
-        return Expression(op_name=sequence[1], oper1=sequence[0], oper2=sequence[-1])
-    return Expression(op_name=sequence[1], oper1=sequence[0], oper2=seq_to_tree(sequence[2:]))
+def gen_assembly(interm_lines, mem_dict):
+    #deal with need for many vars later
+    # use 32bit for everything
+    # special registers: rbp (base), rsp (stack), eax (syscall?), edi (return?), r15d(for double memory references)
+    # others: ebx, ecx, edx, r8d, r9d, r10d, r11d, r12d, r13d, r14d
+    def to_asm(tok):
+        if tok in reg_dict:
+            return reg_dict[tok]
+        elif is_int(tok):
+            return "${}".format(tok)
+        elif tok in mem_dict:
+            return "{}(%rbp)".format(mem_dict[tok] * -4)
+        else:
+            raise Exception("Unknown IL token")
+
+    assembly = []
+    stack_space = len(mem_dict) * 4
+    assembly.append(".global start")
+    assembly.append("start:")
+    assembly.append("  movq %rsp, %rbp")
+    assembly.append("  subq ${}, %rsp".format(stack_space))
+    reg_dict = {"_t1": "%ebx",  "_t2": "%ecx",   "_t3": "%edx",  "_t4": "%r8d",
+                "_t5": "%r9d",  "_t6": "%r10d",  "_t7": "%r11d", "_t8": "%r12d",
+                "_t9": "%r13d", "_t10": "%r14d", "_t11": "%r15d"}
+    for line in interm_lines:
+        tokens = line.split()
+        print(tokens)
+        if len(tokens) == 3:
+            if tokens[1] == "=":
+                source, dest = to_asm(tokens[2]), to_asm(tokens[0])
+                if "(" in source and "(" in dest:
+                    assembly.append("  movl {}, %r15d".format(source))
+                    assembly.append("  movl %r15d, {}".format(dest))
+                else:
+                    assembly.append("  movl {}, {}".format(source, dest))
+        elif len(tokens) == 2:
+            if tokens[0] == "retmain":
+                #current impl is only for main
+                source = to_asm(tokens[1])
+                assembly.append("  movl {}, %edi".format(source))
+                assembly.append("  movl $0x2000001, %eax")
+                assembly.append("  syscall")
+            else:
+                print("BAD")
+    assembly.append("  addq ${}, %rsp".format(stack_space))
+    return assembly
+
+            
 
 
-def fin_ind(tokens, start):
-    """Returns the index corresponding to the end of an expression"""
-    final_ind = start+1
-    if typ(tokens[start]) in Tkn.constants or typ(tokens[start]) is Tkn.var:
-        return final_ind
-    p_lvl = 1
-    while True:
-        tok_type = typ(tokens[final_ind])
-        if tok_type is Tkn.lparen:
-            p_lvl += 1
-        if tok_type is Tkn.rparen:
-            p_lvl -= 1
-        if p_lvl == 0 or tok_type is Tkn.semicolon:
-            break
-        final_ind += 1
-    return final_ind
 
 
-def tokenize(string):
-    """ Returns list of tokens given program as a string"""
-    tokens = []
-    token = ""
-    for i, c in enumerate(string):
-        token += c
-        if (c in SPECIAL_CHARS
-            or i+1 == len(string)
-                or string[i+1] in SPECIAL_CHARS + WHITESPACE):
-            tokens.append(token)
-            token = ""
-    if token:
-        tokens.append(token)
-        token = ""
-    return [t.strip() for t in tokens if t.strip()]
 
 
-def check_skip(tokens, exp, msg):
-    """Checks that value matches a certain type and skips it"""
-    if typ(tokens[0]) not in exp:
-        raise Exception("{} but got {}".format(msg, tokens[0]))
-    tokens.pop(0)
+
+def ast_to_IL(ast):
+    def helper(func_name, body, lines):
+        for statement in body.statements:
+            if node_type(statement) == "return":
+                last_reg, sublines = exp_to_IL(r_count, statement.ret_val)
+                lines += sublines
+                if func_name == "main":
+                    lines += ["retmain {}".format(last_reg)]
+                else:
+                    lines += ["ret {}".format(last_reg)]
+                break
+            elif node_type(statement) == "assign":
+                last_reg, sublines = exp_to_IL(r_count, statement.exp)
+                r_count[0] -= 1
+                lines += sublines
+                lines += ["{} = {}".format(statement.var_name.name, last_reg)]
+            elif node_type(statement) == "if":
+                cond_reg, sublines = exp_to_IL(r_count, statement.cond)
+                lines += sublines
+                truth_header = "--> {}:".format(line_counter[0])
+                line_counter[0] += 1
+                lines += ["ifT {} goto {}".format(cond_reg, truth_header[:-1])]
+                truth_lines = [truth_header]
+                all_lines.append(truth_lines)
+                helper(func_name, statement.true_body, truth_lines)
+                if statement.else_body.statements:
+                    else_header = "--> {}:".format(line_counter[0])
+                    line_counter[0] += 1
+                    lines += ["ifF {} goto {}".format(cond_reg, else_header[:-1])]
+                    else_lines = [else_header]
+                    all_lines.append(else_lines)
+                    helper(func_name, statement.else_body, else_lines)
+            elif node_type(statement) == "body":
+                helper(func_name, statement, lines)
+
+    line_counter = [0]
+    main_lines = ["Main:"]
+    all_lines = [main_lines]
+    r_count = [0]
+    for function in ast.children:
+        if function.name == "main":
+            helper("main", function.body, main_lines)
+    main_lines.append("retmain 0")
+    interm_lines = [line for lst in all_lines for line in lst]
+    return interm_lines
+
+def exp_to_IL(r_count, expression):
+    """Generates intermediate-language lines that evaluate an expression 
+    and the name of the register that stores the final value"""
+    lines = []
+    def helper(exp):
+        if node_type(exp) == "expression":
+            r1 = helper(exp.oper1)
+            r2 = helper(exp.oper2)
+            for r in (r1, r2):
+                if r[:2] == "_t" and r[2:] and is_int(r[2:]):
+                    r_count[0] -= 1
+            r_count[0] += 1
+            r_name = "_t{}".format(r_count[0])
+            lines.append("{} = {} {} {}".format(r_name, r1, exp.op_name, r2))
+            return r_name
+        elif node_type(exp) == "const":
+            r_count[0] += 1
+            r_name = "_t{}".format(r_count[0])
+            lines.append("{} = {}".format(r_name, exp.val))
+            return r_name
+        elif node_type(exp) == "var":
+            return exp.name
+        else:
+            raise Exception("BAD IL")
+    last_reg = helper(expression)
+    return last_reg, lines
 
 
-# Call test run
-test_run("ex.c")
-#tokens = tokenize("1 + (2 + (3 + 4)) + 5;")
-#x, y = expression_AST(tokens, 0)
-#print_tree(x)
-#print(y)
-#print(tokens[y])
+def make_lookup(ast):
+    symb = dict()
+    def traverse(tree):
+        if hasattr(tree, "children"):
+            for child in tree.children:
+                traverse(child)
+        if node_type(tree) == "decl":
+            symb[tree.var.name] = tree.type_dec
+    traverse(ast)
+    return symb       
 
+def node_type(node):
+    return node.__class__.__name__.lower()
+
+def write_assembly(fname):
+    """ Read C, call helper to make AST,
+        and generate assembly, write to new file"""
+    with open(fname) as f:
+        contents = f.read()
+    ast = main_AST(contents)
+    print(make_lookup(ast))
+    print_tree(ast)
+    interm_lines = ast_to_IL(ast)
+    with open("{}.asm".format(fname.split(".")[0]), "w") as f_out:
+        for line in assembly_lines:
+            f_out.write("{}\n".format(line))
+    return
+
+def run_assembly(fname):
+    """Run assembly generated by `write_assembly`"""
+    f_base = fname.split(".")[0] 
+    assemble_link_run = """ as -arch x86_64 -o {0}.o {0}.asm ; 
+                            ld -o {0} {0}.o 2> std.err       ; 
+                            ./{0}                            ;""".format(f_base)
+    return subprocess.call(assemble_link_run, shell=True)  
+
+test()

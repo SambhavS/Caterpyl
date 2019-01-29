@@ -1,8 +1,9 @@
 int main(){
-    if(x == y){
-        return 1 + (2 + (3 + 4)) + 5;
-    }
-    else{
+    int z = 20;
+    int x = 50;
+    if ( x < 90 ) {
+        return 1;
+    } else{
         return 2;
     }
 }
