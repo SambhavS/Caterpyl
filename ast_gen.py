@@ -1,5 +1,4 @@
 from utils import *
-
 """
 ------------------------------------------------------------
 C Grammar (Notation: [leaf], <branch>, UNKNOWN, `literal`)
@@ -15,29 +14,14 @@ statement := `return` <expression> `;` | [ret_type]  [var name] = <expression> `
 expression := [parenthetical expression (PE) / const-var (CV)] [binary operator] 
                 ... [PE/CV] [binary operator] ... [PE/CV]
 
-
-//We skip non-parsable tokens proactively for parse_statements & statement_AST, but not for expression_AST
 """
 
-def print_tree(tree, depth=0):
-    string = "{}{}{}".format("   " * depth, "|", tree.__class__.__name__)
-    string += " ({})".format(tree.data_type) if hasattr(tree, "data_type") else ""
-    string += " ({})".format(tree.type_dec) if hasattr(tree, "type_dec") else ""
-    string += " ({})".format(tree.op_name) if hasattr(tree, "op_name") else ""
-    string += " ({})".format(tree.name) if hasattr(tree, "name") else ""
-    string += " ({})".format(tree.val) if hasattr(tree, "val") else ""
-    print(string)
-    if hasattr(tree, "children"):
-        children = tree.children
-        for child in children:
-            print_tree(child, depth + 1)
-
-
 def main_AST(program):
+    """ Creates token stream, parses tokens, 
+        and returns AST given program as a string."""
     tokens = tokenize(program)
     subtrees = parse_statements(tokens, func_dec=True)
     return Prog(subtrees)
-
 
 def parse_statements(tokens, func_dec=False):
     statements = []
@@ -48,7 +32,6 @@ def parse_statements(tokens, func_dec=False):
     if tokens:
         tokens.pop(0)
     return statements
-
 
 def statement_AST(tokens, func_dec=False):
     root = tokens[0]
@@ -200,7 +183,8 @@ def raw_expression_list(tokens, ind=0):
             return [val], ind
     raise Exception("Bad expression")
 
-# Utils
+### AST Utils ###
+
 def wrapNode(val):
     """ Wraps value in proper node class"""
     tok_type = typ(val)

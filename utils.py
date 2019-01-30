@@ -164,3 +164,50 @@ class Return:
         self.children = []
         self.ret_val = ret_val
         attach(self, ret_val)
+
+############# Misc Utils ##################
+
+def print_IL(lines):
+    """Format and print intermediate representation lines"""
+    print()
+    for l in lines:
+        if l[-1] == ":":
+            print(l)
+        else:
+            print("   {}".format(l))
+
+def print_lst(lst):
+    """Print all elements in given list"""
+    print()
+    for i in lst:
+        print(i)
+
+def print_tree(tree, depth=0):
+    """ Recursively prints an AST"""
+    string = "{}{}{}".format("   " * depth, "|", tree.__class__.__name__)
+    string += " ({})".format(tree.data_type) if hasattr(tree, "data_type") else ""
+    string += " ({})".format(tree.type_dec) if hasattr(tree, "type_dec") else ""
+    string += " ({})".format(tree.op_name) if hasattr(tree, "op_name") else ""
+    string += " ({})".format(tree.name) if hasattr(tree, "name") else ""
+    string += " ({})".format(tree.val) if hasattr(tree, "val") else ""
+    print(string)
+    if hasattr(tree, "children"):
+        children = tree.children
+        for child in children:
+            print_tree(child, depth + 1)
+
+def node_type(node):
+    """Return string correspoonding to type of node"""
+    return node.__class__.__name__.lower()        
+
+def make_lookup(ast):
+    """Return dict noting type info about every declared variable"""
+    symb = dict()
+    def traverse(tree):
+        if hasattr(tree, "children"):
+            for child in tree.children:
+                traverse(child)
+        if node_type(tree) == "decl":
+            symb[tree.var.name] = tree.type_dec
+    traverse(ast)
+    return symb 
