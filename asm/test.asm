@@ -1,51 +1,18 @@
+  # Setup stack/base pointer
 .global start
 start:
   movq %rsp, %rbp
-  subq $24, %rsp
-  movl $5, %ebx
-  movl $3, %ecx
-  movl $4, %edx
-  movl %ecx, %r15d
-  imul  %edx, %r15d
-  movl %r15d, %ecx
-  movl %ebx, %r15d
-  add  %ecx, %r15d
-  movl %r15d, %ebx
-  movl $3, %ecx
-  movl %ebx, %r15d
-  add  %ecx, %r15d
-  movl %r15d, %ebx
+  subq $8, %rsp
+  # Assignment
+  movl $1, %ebx
+  # Assignment
   movl %ebx, 0(%rbp)
-  movl $20, %ebx
-  movl %ebx, -8(%rbp)
-  movl $20, %ebx
-  movl %ebx, %r15d
-  imul  0(%rbp), %r15d
-  movl %r15d, %ebx
-  movl %ebx, %r15d
-  imul  -8(%rbp), %r15d
-  movl %r15d, %ebx
-  movl %ebx, -16(%rbp)
-  movl $19, %ebx
-  movl %ebx, %r15d
-  imul  0(%rbp), %r15d
-  movl %r15d, %ebx
-  movl %ebx, %r15d
-  imul  -8(%rbp), %r15d
-  movl %r15d, %ebx
-  movl -16(%rbp), %r15d
-  sub  %ebx, %r15d
-  movl %r15d, %ebx
-  movl %ebx, -16(%rbp)
-  movl $300, %ebx
-  movl -16(%rbp), %r15d
-  sub  %ebx, %r15d
-  movl %r15d, %ebx
-  movl %ebx, -16(%rbp)
-  movl -16(%rbp), %edi
+  # Return out of `main`
+  movl 0(%rbp), %edi
   movl $0x2000001, %eax
   syscall
+  # Return out of `main`
   movl $0, %edi
   movl $0x2000001, %eax
   syscall
-  addq $24, %rsp
+  addq $8, %rsp
