@@ -5,19 +5,15 @@ def gen_assembly(interm_lines, mem_dict):
 
     def to_asm(tok):
         """ Converts individual TAC token to assembly equivelent"""
-        if tok in reg_dict:
-            return reg_dict[tok]
-        elif tok in opers:
-            return opers[tok]
-        elif tok in comps:
-            return comps[tok]
-        elif is_int(tok):
-            return "${}".format(tok)
-        elif tok in mem_dict:
-            return "{}(%rbp)".format(mem_dict[tok] * -8)
+        if tok in reg_dict:     return reg_dict[tok]
+        elif tok in opers:      return opers[tok]
+        elif tok in log_ops:    return log_ops[tok]
+        elif tok in comps:      return comps[tok]
+        elif tok in un_ops:     return un_ops[tok]
+        elif is_int(tok):       return "${}".format(tok)
+        elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok] * -8)
         else:
-            print(tok)
-            raise Exception("Unknown IL token")
+            raise Exception("Unknown IL token: {}".format(tok))
 
     # Define equivalent register names and set up start of assembly file
     assembly = []
@@ -31,21 +27,12 @@ def gen_assembly(interm_lines, mem_dict):
                 "_t5": "%r9d",  "_t6": "%r10d",  "_t7": "%r11d", "_t8": "%r12d",
                 "_t9": "%r13d", "_t10": "%r14d", "_t11": "%r15d"}
     opers = {"*":"imul", "-":"sub", "+":"add", "/":"div"}
+    log_ops = {"&&":"and", "||":"or"}
+    un_ops = {"!": "not"}
     comps = {"==": "je", "!=": "jne", ">=": "jge", "<=": "jle", "<":  "jl", ">":  "jg"}
 
     # Convert TAC line by line, by type of statement
     for i, line in enumerate(interm_lines):
-        """
-        x = 1 == 1
-        becomes
-
-        cmp $1 $1
-        je eq 
-        mov 0 x
-        jmp after
-    eq-->mov 1 x
-    after-->rest of program
-        """
         tokens = line.split()
         if len(tokens) == 5:
             if tokens[0] == "ifTrue":
@@ -67,6 +54,26 @@ def gen_assembly(interm_lines, mem_dict):
                 assembly.append("  movl {}, %r15d".format(source1))
                 assembly.append("  {}  {}, %r15d".format(instr, source2))
                 assembly.append("  movl %r15d, {}".format(dest))
+            elif tokens[3] in log_ops:
+                assembly.append("  # Logical operation")
+                operator = to_asm(tokens[3])
+                dest, source1, source2 = to_asm(tokens[0]), to_asm(tokens[2]), to_asm(tokens[4])
+                if operator == "and":
+                    instr, match, fall_through = "je", 0, 1
+                elif operator == "or":
+                    instr, match, fall_through = "jne", 1, 0
+                assembly.append("  movl {}, %r15d".format(source1))
+                assembly.append("  cmp $0, %r15d")
+                assembly.append("  {} e{}".format(instr, i))
+                assembly.append("  movl {}, %r15d".format(source2))
+                assembly.append("  cmp $0, %r15d")
+                assembly.append("  {} e{}".format(instr, i))
+                assembly.append("  movl ${}, {}".format(fall_through, dest))
+                assembly.append("  jmp aft{}".format(i))
+                assembly.append("e{}:".format(i))
+                assembly.append("  movl ${}, {}".format(match, dest))
+                assembly.append("aft{}:".format(i))
+                    
             elif tokens[3] in comps:
                 assembly.append("  # Checking comparison")
                 dest, oper, oper1, oper2 = to_asm(tokens[0]), to_asm(tokens[3]), to_asm(tokens[2]), to_asm(tokens[4])
@@ -78,6 +85,23 @@ def gen_assembly(interm_lines, mem_dict):
                 assembly.append("e{}:".format(i))
                 assembly.append("  movl $1, {}".format(dest))
                 assembly.append("aft{}:".format(i))
+        elif len(tokens) == 4:
+            if tokens[2] in un_ops:
+                assembly.append("  # Unary operator")
+                operator = to_asm(tokens[2])
+                dest, operand = to_asm(tokens[0]), to_asm(tokens[3])
+                assembly.append("  movl {}, %r15d".format(operand))
+                assembly.append("  cmp $0, %r15d")
+                assembly.append("  je e{}".format(i))
+                assembly.append("  movl $0, {}".format(dest))
+                assembly.append("  jmp aft{}".format(i))
+                assembly.append("e{}:".format(i))
+                assembly.append("  movl $1, {}".format(dest))
+                assembly.append("aft{}:".format(i))
+
+
+
+
         elif len(tokens) == 3:
             if tokens[1] == "=":
                 assembly.append("  # Assignment")
