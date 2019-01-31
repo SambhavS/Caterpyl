@@ -7,6 +7,10 @@ def gen_assembly(interm_lines, mem_dict):
         """ Converts individual TAC token to assembly equivelent"""
         if tok in reg_dict:
             return reg_dict[tok]
+        elif tok in opers:
+            return opers[tok]
+        elif tok in comps:
+            return comps[tok]
         elif is_int(tok):
             return "${}".format(tok)
         elif tok in mem_dict:
@@ -18,6 +22,7 @@ def gen_assembly(interm_lines, mem_dict):
     # Define equivalent register names and set up start of assembly file
     assembly = []
     stack_space = len(mem_dict) * 8
+    assembly.append("  # Setup stack/base pointer")
     assembly.append(".global start")
     assembly.append("start:")
     assembly.append("  movq %rsp, %rbp")
@@ -26,40 +31,82 @@ def gen_assembly(interm_lines, mem_dict):
                 "_t5": "%r9d",  "_t6": "%r10d",  "_t7": "%r11d", "_t8": "%r12d",
                 "_t9": "%r13d", "_t10": "%r14d", "_t11": "%r15d"}
     opers = {"*":"imul", "-":"sub", "+":"add", "/":"div"}
+    comps = {"==": "je", "!=": "jne", ">=": "jge", "<=": "jle", "<":  "jl", ">":  "jg"}
 
     # Convert TAC line by line, by type of statement
-    for line in interm_lines:
+    for i, line in enumerate(interm_lines):
+        """
+        x = 1 == 1
+        becomes
 
+        cmp $1 $1
+        je eq 
+        mov 0 x
+        jmp after
+    eq-->mov 1 x
+    after-->rest of program
+        """
         tokens = line.split()
         if len(tokens) == 5:
-            if tokens[3] in opers:
+            if tokens[0] == "ifTrue":
+                cond_reg, dest = tokens[1], tokens[-1]
+                assembly.append("  # IfTrue branch")
+                assembly.append("  cmpl $1, {}".format(to_asm(cond_reg)))
+                assembly.append("  je {}".format(dest))
+            elif tokens[0] == "ifFalse":
+                assembly.append("  # IfFalse branch")
+                cond_reg, dest = tokens[1], tokens[-1]
+                # Jump iff != 1
+                assembly.append("  cmpl $1, {}".format(to_asm(cond_reg)))
+                assembly.append("  jne {}".format(dest))
+            elif tokens[3] in opers:
+                assembly.append("  # Arithmetic operation")
                 dest, source1, source2 = to_asm(tokens[0]), to_asm(tokens[2]), to_asm(tokens[4])
-                instr = opers[tokens[3]]
+                instr = to_asm(tokens[3])
                 assembly.append("  movl {}, %r15d".format(source1))
                 assembly.append("  {}  {}, %r15d".format(instr, source2))
                 assembly.append("  movl %r15d, {}".format(dest))
-            
+            elif tokens[3] in comps:
+                assembly.append("  # Checking comparison")
+                dest, oper, oper1, oper2 = to_asm(tokens[0]), to_asm(tokens[3]), to_asm(tokens[2]), to_asm(tokens[4])
+                assembly.append("  movl {}, %r15d".format(oper1))
+                assembly.append("  cmp {}, %r15d".format(oper2))
+                assembly.append("  {} e{}".format(oper, i))
+                assembly.append("  movl $0, {}".format(dest))
+                assembly.append("  jmp aft{}".format(i))
+                assembly.append("e{}:".format(i))
+                assembly.append("  movl $1, {}".format(dest))
+                assembly.append("aft{}:".format(i))
         elif len(tokens) == 3:
             if tokens[1] == "=":
+                assembly.append("  # Assignment")
                 source, dest = to_asm(tokens[2]), to_asm(tokens[0])
                 if "(" in source and "(" in dest:
                     assembly.append("  movl {}, %r15d".format(source))
                     assembly.append("  movl %r15d, {}".format(dest))
                 else:
                     assembly.append("  movl {}, {}".format(source, dest))
+            elif tokens[0] == "goto":
+                assembly.append("  # Goto")
+                dest = tokens[-1]
+                assembly.append("  jmp {}".format(dest))
+
         elif len(tokens) == 2:
             if tokens[0] == "retmain":
+                assembly.append("  # Return out of `main`")
                 source = to_asm(tokens[1])
                 assembly.append("  movl {}, %edi".format(source))
                 assembly.append("  movl $0x2000001, %eax")
                 assembly.append("  syscall")
             elif tokens[0] == "ret":
-                # may not work ...
+                # needs work for non-main functions
                 source = to_asm(tokens[1])
                 assembly.append("  movl {}, %edi".format(source))
                 assembly.append("  ret")
-            else:
-                raise Exception("Bad IL Token?")
+            elif tokens[0] == "-->":
+                label = tokens[-1]
+                assembly.append(label)
+                
 
     assembly.append("  addq ${}, %rsp".format(stack_space))
     return assembly

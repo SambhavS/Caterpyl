@@ -19,7 +19,7 @@ def ast_to_IL(ast):
                 else:
                     lines.append("ret {}".format(last_reg))
                 break
-                
+
             elif node_type(statement) == "assign":
                 last_reg, sublines = exp_to_IL(r_count, statement.exp)
                 r_count[0] -= 1
@@ -30,13 +30,14 @@ def ast_to_IL(ast):
                 cond_reg, sublines = exp_to_IL(r_count, statement.cond)
                 lines += sublines
                 truth_header = "--> T{}:".format(get_count(counter))
-                lines.append("ifT {} goto {}".format(cond_reg, truth_header[:-1]))
+                after_header = "--> A{}:".format(get_count(counter))
+                lines.append("ifTrue {} goto {}".format(cond_reg, truth_header[:-1]))
                 if statement.else_body.statements:
                     else_header = "--> E{}:".format(get_count(counter))
-                    lines.append("ifF {} goto {}".format(cond_reg, else_header[:-1]))
+                    lines.append("ifFalse {} goto {}".format(cond_reg, else_header[:-1]))
+                lines.append("goto {}".format(after_header[:-1]))
                 lines.append(truth_header)
                 convert_body(parent_func, statement.true_body)
-                after_header = "--> A{}:".format(get_count(counter))
                 lines.append("goto {}".format(after_header[:-1]))
                 if statement.else_body.statements:
                     lines.append(else_header)
@@ -45,12 +46,12 @@ def ast_to_IL(ast):
                 lines.append(after_header)
                 
             elif node_type(statement) == "while":
+                while_header = "--> W{}:".format(get_count(counter))
+                lines.append(while_header)
                 cond_reg, sublines = exp_to_IL(r_count, statement.cond)
                 lines += sublines
-                while_header = "--> W{}:".format(get_count(counter))
                 after_header = "--> A{}:".format(get_count(counter))
-                lines.append(while_header)
-                lines.append("ifF {} goto {}".format(cond_reg, after_header[:-1]))
+                lines.append("ifFalse {} goto {}".format(cond_reg, after_header[:-1]))
                 convert_body(parent_func, statement.true_body)
                 lines.append("goto {}".format(while_header[:-1]))
                 lines.append(after_header)

@@ -10,8 +10,8 @@
 
 
 # Call assembly
-as -arch x86_64 -o ex.o ex.s ;
-ld -o ex ex.o 2> std.err ; ./ex ; echo $?
+as -arch x86_64 -o test.o test.asm ;
+ld -o test test.o 2> std.err ; ./test ; echo $?
 
 # Register allocation
 special registers: rbp (base), rsp (stack), eax (syscall?), edi (return?), r15d(for double memory references)

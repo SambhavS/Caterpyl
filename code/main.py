@@ -17,8 +17,7 @@ def main():
     # Convert AST and print resulting IL
     interm_lines = ast_to_IL(ast)   
     print_IL(interm_lines)
-    return
-    
+
     # Define dicts for type and memory info
     lookup = make_lookup(ast)
     mem_dict = {var:i for i, var in enumerate(lookup.keys())}
@@ -31,7 +30,6 @@ def main():
     with open("../asm/{}.asm".format(fname.split(".")[0]), "w") as f_out:
             for line in assembly:
                 f_out.write("{}\n".format(line))
-
     # Run generated assembly
     f_base = fname.split(".")[0] 
     assemble_link_run = """ cd ../asm; as -arch x86_64 -o {0}.o {0}.asm ; 

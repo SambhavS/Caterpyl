@@ -222,7 +222,7 @@ def tokenize(string):
     for i, c in enumerate(string):
         token += c
         terminals  = "(){;}"
-        opers = "!+-*/="
+        opers = "!+-*/=<>"
         if c in opers and (i+1<len(string) and string[i+1]=="="):
             pass
         elif (c in terminals+opers or i+1 == len(string)
