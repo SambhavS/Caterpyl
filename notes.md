@@ -7,7 +7,7 @@
 - boolean operators expressions
 - comments
 
-#Done
+# Done
 - control statements
 - assignment
 - integers
