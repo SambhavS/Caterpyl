@@ -49,16 +49,17 @@ def gen_assembly(interm_lines, mem_dict):
         tokens = line.split()
         if len(tokens) == 5:
             if tokens[0] == "ifTrue":
+                # Jump iff != 0
                 cond_reg, dest = tokens[1], tokens[-1]
                 assembly.append("  # IfTrue branch")
-                assembly.append("  cmpl $1, {}".format(to_asm(cond_reg)))
-                assembly.append("  je {}".format(dest))
+                assembly.append("  cmpl $0, {}".format(to_asm(cond_reg)))
+                assembly.append("  jne {}".format(dest))
             elif tokens[0] == "ifFalse":
                 assembly.append("  # IfFalse branch")
                 cond_reg, dest = tokens[1], tokens[-1]
-                # Jump iff != 1
-                assembly.append("  cmpl $1, {}".format(to_asm(cond_reg)))
-                assembly.append("  jne {}".format(dest))
+                # Jump iff == 0
+                assembly.append("  cmpl $0, {}".format(to_asm(cond_reg)))
+                assembly.append("  je {}".format(dest))
             elif tokens[3] in opers:
                 assembly.append("  # Arithmetic operation")
                 dest, source1, source2 = to_asm(tokens[0]), to_asm(tokens[2]), to_asm(tokens[4])
