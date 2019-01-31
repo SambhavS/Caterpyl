@@ -22,7 +22,8 @@ def ast_to_IL(ast):
 
             elif node_type(statement) == "assign":
                 last_reg, sublines = exp_to_IL(r_count, statement.exp)
-                r_count[0] -= 1
+                if last_reg[:2] == "_t" and last_reg[2:] and is_int(last_reg[2:]):
+                    r_count[0] -= 1
                 lines += sublines
                 lines.append("{} = {}".format(statement.var_name.name, last_reg))
 
@@ -87,6 +88,7 @@ def exp_to_IL(r_count, expression):
             r = helper(exp.oper)
             if r[:2] == "_t" and r[2:] and is_int(r[2:]):
                 r_count[0] -= 1
+                print(1)
             r_count[0] += 1
             r_name = "_t{}".format(r_count[0])
             lines.append("{} = {} {}".format(r_name, exp.op_name, r))
