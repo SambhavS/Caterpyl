@@ -1,6 +1,6 @@
 # Caterpyl
 
-Hi! This is a compiler I'm writing from scratch to compile the core subset of C to x86_64 assembly code.
+Caterpyl is a compiler I'm writing from scratch to compile a core subset of C into x86_64 assembly.
 
 Currently, it has the following features:
 - finds and compiles main function
