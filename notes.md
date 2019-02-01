@@ -4,16 +4,6 @@
 - type checking
 - optimization
 - deal with many variables in ASM_gen (insufficient registers)
-- boolean operators expressions
-- comments
-
-# Done
-- control statements
-- assignment
-- integers
-- parenthetical evaluation
-- main return statements
-
 
 # Tokens
 We skip non-parsable tokens proactively for parse_statements & statement_AST, but not for expression_AST

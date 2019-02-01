@@ -2,26 +2,27 @@
 .global start
 start:
   movq %rsp, %rbp
-  subq $8, %rsp
+  subq $24, %rsp
   # Assignment
-  movl $0, %ebx
-  # Unary operator
-  movl %ebx, %r15d
-  cmp $0, %r15d
-  je e2
-  movl $0, %ebx
-  jmp aft2
-e2:
-  movl $1, %ebx
-aft2:
+  movl $1, %r8d
   # Assignment
-  movl %ebx, 0(%rbp)
+  movl %r8d, 0(%rbp)
+  # Assignment
+  movl $2, %r8d
+  # Assignment
+  movl %r8d, -8(%rbp)
+  # Arithmetic operation
+  movl 0(%rbp), %r15d
+  add  -8(%rbp), %r15d
+  movl %r15d, %r8d
+  # Assignment
+  movl %r8d, -16(%rbp)
   # Return out of `main`
-  movl 0(%rbp), %edi
+  movl -16(%rbp), %edi
   movl $0x2000001, %eax
   syscall
   # Return out of `main`
   movl $0, %edi
   movl $0x2000001, %eax
   syscall
-  addq $8, %rsp
+  addq $24, %rsp

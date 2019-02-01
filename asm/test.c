@@ -1,4 +1,7 @@
 int main(){
-    int x = !0;
-    return x;
+    //Welcome to Caterpyl! 
+    int x = 1;
+    int y = 2;
+    int z = x + y;
+    return z;
 }
