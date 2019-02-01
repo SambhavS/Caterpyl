@@ -11,7 +11,7 @@ def main():
         contents = f.read()
 
     # Create & print AST
-    ast = main_AST(contents)
+    lookup, ast = main_AST(contents, {})
     print_tree(ast)
 
     # Convert AST and print resulting IL
@@ -19,7 +19,6 @@ def main():
     print_IL(interm_lines)
 
     # Define dicts for type and memory info
-    lookup = make_lookup(ast)
     mem_dict = {var:i for i, var in enumerate(lookup.keys())}
     
     # Generate and print assembly

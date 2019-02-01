@@ -16,25 +16,24 @@ expression := [parenthetical expression (PE) / const-var (CV)] [binary operator]
 *unary operators
 """
 
-def main_AST(program):
+def main_AST(program, lookup):
     """ Creates token stream, parses tokens, 
         and returns AST given program as a string."""
     tokens = tokenize(program)
-    print(tokens)
-    subtrees = parse_statements(tokens, func_dec=True)
-    return Prog(subtrees)
+    subtrees = parse_statements(tokens, lookup, func_dec=True)
+    return lookup, Prog(subtrees)
 
-def parse_statements(tokens, func_dec=False):
+def parse_statements(tokens, lookup, func_dec=False):
     statements = []
     while len(tokens) and typ(tokens[0]) != Tkn.rbrack:
-        statement = statement_AST(tokens, func_dec)
+        statement = statement_AST(tokens, lookup, func_dec)
         statements.append(statement)
     # Parse `}`
     if tokens:
         tokens.pop(0)
     return statements
 
-def statement_AST(tokens, func_dec=False):
+def statement_AST(tokens, lookup, func_dec=False):
     root = tokens[0]
     root_type = typ(root)
     if root_type in Tkn.prog_keywords:
@@ -42,14 +41,14 @@ def statement_AST(tokens, func_dec=False):
         if root_type is Tkn.ifx:
             check_skip(tokens, Tkn.ifx, "Check `if`")
             check_skip(tokens, Tkn.lparen, "Check `(`")
-            expression = exp_AST(tokens)
+            expression = exp_AST(tokens, lookup)
             check_skip(tokens, Tkn.rparen, "Check `)`")
             check_skip(tokens, Tkn.lbrack, "Check `{`")
-            true_statements = parse_statements(tokens)
+            true_statements = parse_statements(tokens, lookup)
             if tokens[0] == "else":
                 check_skip(tokens, Tkn.elsex, "Check `else`")
                 check_skip(tokens, Tkn.lbrack, "Check `{`")
-                else_statements = parse_statements(tokens)
+                else_statements = parse_statements(tokens, lookup)
             else:
                 else_statements = []
             subtree = If(cond=expression, true_body=Body(
@@ -57,14 +56,14 @@ def statement_AST(tokens, func_dec=False):
         elif root_type is Tkn.whilex:
             check_skip(tokens, Tkn.whilex, "Check `while`")
             check_skip(tokens, Tkn.lparen, "Check `(`")
-            expression = exp_AST(tokens)
+            expression = exp_AST(tokens, lookup)
             check_skip(tokens, Tkn.rparen, "Check `)`")
             check_skip(tokens, Tkn.lbrack, "Check `{`")
-            true_statements = parse_statements(tokens)
+            true_statements = parse_statements(tokens, lookup)
             subtree = While(cond=expression, true_body=Body(true_statements))
         elif root_type is Tkn.returnx:
             check_skip(tokens, Tkn.returnx, "Check `return`")
-            ret_expression = exp_AST(tokens)
+            ret_expression = exp_AST(tokens, lookup)
             check_skip(tokens, Tkn.semicolon, "Check `;`")
             subtree = Return(ret_expression)
 
@@ -78,16 +77,16 @@ def statement_AST(tokens, func_dec=False):
             check_skip(tokens, Tkn.lparen, "Check `(`")
             check_skip(tokens, Tkn.rparen, "Check `)`")
             check_skip(tokens, Tkn.lbrack, "Check `{`")
-            statements = parse_statements(tokens, func_dec=False)
+            statements = parse_statements(tokens, lookup, func_dec=False)
             subtree = Func(ret_type=type_dec, name=func_name, body=Body(statements))
         elif typ(tokens[1]) is Tkn.equal:
             """ Variable Declaration + Assignment"""
             variable = Var(name=tokens[0])
             check_skip(tokens, Tkn.var, "Check var name")
             check_skip(tokens, Tkn.equal, "Check `=`")
-            expression = exp_AST(tokens)
+            expression = exp_AST(tokens, lookup)
             check_skip(tokens, Tkn.semicolon, "Check `;`")
-            decl = Decl(var=variable, type_dec=type_dec)
+            decl = Decl(var=variable, type_dec=type_dec, lookup=lookup)
             assign = Assign(var_name=variable, exp=expression)
             subtree = Body([decl, assign])
 
@@ -96,22 +95,35 @@ def statement_AST(tokens, func_dec=False):
             variable = Var(name=tokens[0])
             check_skip(tokens, Tkn.var, "Check var name")
             check_skip(tokens, Tkn.semicolon, "Check `;`")
-            subtree = Decl(var=variable, type_dec=type_dec)
+            subtree = Decl(var=variable, type_dec=type_dec, lookup=lookup)
         else:
             raise Exception("Bad syntax after type keyword")
     elif root_type is Tkn.var:
-        """ Assignment"""
-        variable = Var(name=tokens[0])
-        check_skip(tokens, Tkn.var, "Check var name")
-        check_skip(tokens, Tkn.equal, "Check `=`")
-        expression = exp_AST(tokens)
-        check_skip(tokens, Tkn.semicolon, "Check `;`")
-        subtree = Assign(var_name=variable, exp=expression)
+        if typ(tokens[1]) is Tkn.op_eq:
+            variable = Var(name=tokens[0])
+            check_skip(tokens, Tkn.var, "Check var name")
+            operator = tokens[0][0]
+            check_skip(tokens, Tkn.op_eq, "Check `?=`")
+            expression = exp_AST(tokens, lookup)
+            check_skip(tokens, Tkn.semicolon, "Check `;`")
+            mod_expression = Expression(op_name=operator, oper1=variable, oper2=expression, lookup=lookup)
+            subtree = Assign(var_name=variable, exp=mod_expression)
+
+        elif typ(tokens[1]) is Tkn.equal:
+            """ Assignment"""
+            variable = Var(name=tokens[0])
+            check_skip(tokens, Tkn.var, "Check var name")
+            check_skip(tokens, Tkn.equal, "Check `=`")
+            expression = exp_AST(tokens, lookup)
+            check_skip(tokens, Tkn.semicolon, "Check `;`")
+            subtree = Assign(var_name=variable, exp=expression)
+        else:
+            print(typ(tokens[1]))
     else:
         raise Exception("Invalid first term in statement {}".format(root))
     return subtree
 
-def exp_AST(tokens):
+def exp_AST(tokens, lookup):
     """Creates and converts list of expressions to proper expression AST"""
     def list_to_tree(exp_lst):
         while any([isinstance(exp, list) for exp in exp_lst]):
@@ -125,9 +137,9 @@ def exp_AST(tokens):
             while op in exp_lst:
                 ind = exp_lst.index(op)
                 if op in UNOPS:
-                    exp_lst[ind:ind+2] = [UnaryExpression(op_name=op, oper=exp_lst[ind-1])]
+                    exp_lst[ind:ind+2] = [UnaryExpression(op_name=op, oper=exp_lst[ind-1], lookup=lookup)]
                 else:
-                    exp_lst[ind-1:ind+2] = [Expression(op_name=op, oper1=exp_lst[ind-1], oper2=exp_lst[ind+1])]
+                    exp_lst[ind-1:ind+2] = [Expression(op_name=op, oper1=exp_lst[ind-1], oper2=exp_lst[ind+1], lookup=lookup)]
         return exp_lst[0]
 
     exp_lst, drops = raw_expression_list(tokens)
@@ -200,8 +212,7 @@ def raw_expression_list(tokens, ind=0):
         ind += 1
         second_exp_list, ind = raw_expression_list(tokens, ind)
         return exp_list + second_exp_list, ind
-    print(tokens[ind], typ(tokens[ind]))
-    raise Exception("Bad expression")
+    raise Exception("Bad expression: {} {}".format(tokens[ind], typ(tokens[ind])))
 
 ### AST Utils ###
 
@@ -219,16 +230,24 @@ def tokenize(string):
     """ Returns list of tokens given program as a string"""
     tokens = []
     token = ""
+    is_comment = False
     for i, c in enumerate(string):
-        token += c
-        terminals  = "(){;}"
-        opers = "!+-*/=<>"
-        if c in opers and (i+1<len(string) and string[i+1]=="="):
-            pass
-        elif (c in terminals+opers or i+1 == len(string)
-                or string[i+1] in terminals+opers+WHITESPACE):
-            tokens.append(token)
-            token = ""
+        if is_comment:
+            if c == "\n":
+                is_comment = False
+        else:
+            if c == "/" and (i+1<len(string) and string[i+1]=="/"):
+                is_comment = True
+                continue
+            token += c
+            terminals  = "(){;}"
+            opers = "!+-*/=<>%"
+            if c in opers and (i+1<len(string) and string[i+1]=="="):
+                continue
+            elif (c in terminals+opers or i+1 == len(string)
+                    or string[i+1] in terminals+opers+WHITESPACE):
+                tokens.append(token)
+                token = ""
     if token:
         tokens.append(token)
         token = ""

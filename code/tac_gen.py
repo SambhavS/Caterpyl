@@ -36,6 +36,8 @@ def ast_to_IL(ast):
                 if statement.else_body.statements:
                     else_header = "--> E{}:".format(get_count(counter))
                     lines.append("ifFalse {} goto {}".format(cond_reg, else_header[:-1]))
+                if cond_reg[:2] == "_t" and cond_reg[2:] and is_int(cond_reg[2:]):
+                    r_count[0] -= 1
                 lines.append("goto {}".format(after_header[:-1]))
                 lines.append(truth_header)
                 convert_body(parent_func, statement.true_body)
@@ -53,6 +55,8 @@ def ast_to_IL(ast):
                 lines += sublines
                 after_header = "--> A{}:".format(get_count(counter))
                 lines.append("ifFalse {} goto {}".format(cond_reg, after_header[:-1]))
+                if cond_reg[:2] == "_t" and cond_reg[2:] and is_int(cond_reg[2:]):
+                    r_count[0] -= 1
                 convert_body(parent_func, statement.true_body)
                 lines.append("goto {}".format(while_header[:-1]))
                 lines.append(after_header)

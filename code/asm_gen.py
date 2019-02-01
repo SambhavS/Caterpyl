@@ -13,7 +13,7 @@ def gen_assembly(interm_lines, mem_dict):
         elif is_int(tok):       return "${}".format(tok)
         elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok] * -8)
         else:
-            raise Exception("Unknown IL token: {}".format(tok))
+            raise Exception("TypeError: Variable `{}` not declared".format(tok))
 
     # Define equivalent register names and set up start of assembly file
     assembly = []
@@ -23,20 +23,19 @@ def gen_assembly(interm_lines, mem_dict):
     assembly.append("start:")
     assembly.append("  movq %rsp, %rbp")
     assembly.append("  subq ${}, %rsp".format(stack_space))
-    reg_dict = {"_t1": "%ebx",  "_t2": "%ecx",   "_t3": "%edx",  "_t4": "%r8d",
-                "_t5": "%r9d",  "_t6": "%r10d",  "_t7": "%r11d", "_t8": "%r12d",
-                "_t9": "%r13d", "_t10": "%r14d", "_t11": "%r15d"}
-    opers = {"*":"imul", "-":"sub", "+":"add", "/":"div"}
+    reg_dict = {"_t1": "%r8d", "_t2": "%r9d", "_t3": "%r10d", "_t4": "%r11d",
+                "_t5": "%r12d", "_t6": "%r13d", "_t7": "%r14d"}
+    opers = {"*":"imul", "-":"sub", "+":"add", "/":"div", "%":"div"}
     log_ops = {"&&":"and", "||":"or"}
     un_ops = {"!": "not"}
     comps = {"==": "je", "!=": "jne", ">=": "jge", "<=": "jle", "<":  "jl", ">":  "jg"}
 
     # Convert TAC line by line, by type of statement
+    # (False == 0, True != 0)
     for i, line in enumerate(interm_lines):
         tokens = line.split()
         if len(tokens) == 5:
             if tokens[0] == "ifTrue":
-                # Jump iff != 0
                 cond_reg, dest = tokens[1], tokens[-1]
                 assembly.append("  # IfTrue branch")
                 assembly.append("  cmpl $0, {}".format(to_asm(cond_reg)))
@@ -44,17 +43,27 @@ def gen_assembly(interm_lines, mem_dict):
             elif tokens[0] == "ifFalse":
                 assembly.append("  # IfFalse branch")
                 cond_reg, dest = tokens[1], tokens[-1]
-                # Jump iff == 0
                 assembly.append("  cmpl $0, {}".format(to_asm(cond_reg)))
                 assembly.append("  je {}".format(dest))
+
             elif tokens[3] in opers:
                 assembly.append("  # Arithmetic operation")
                 dest, source1, source2 = to_asm(tokens[0]), to_asm(tokens[2]), to_asm(tokens[4])
                 instr = to_asm(tokens[3])
-                assembly.append("  movl {}, %r15d".format(source1))
-                assembly.append("  {}  {}, %r15d".format(instr, source2))
-                assembly.append("  movl %r15d, {}".format(dest))
+                if instr == "div":
+                    assembly.append("  movl $0, %edx")
+                    assembly.append("  movl {}, %eax".format(source1))
+                    assembly.append("  movl {}, %ecx".format(source2))
+                    assembly.append("  div %ecx")
+                    value = "%edx" if tokens[3] == "%" else "%eax"
+                    assembly.append("  movl {}, {}".format(value, dest))
+                else:
+                    assembly.append("  movl {}, %r15d".format(source1))
+                    assembly.append("  {}  {}, %r15d".format(instr, source2))
+                    assembly.append("  movl %r15d, {}".format(dest))
+
             elif tokens[3] in log_ops:
+
                 assembly.append("  # Logical operation")
                 operator = to_asm(tokens[3])
                 dest, source1, source2 = to_asm(tokens[0]), to_asm(tokens[2]), to_asm(tokens[4])
@@ -85,6 +94,7 @@ def gen_assembly(interm_lines, mem_dict):
                 assembly.append("e{}:".format(i))
                 assembly.append("  movl $1, {}".format(dest))
                 assembly.append("aft{}:".format(i))
+
         elif len(tokens) == 4:
             if tokens[2] in un_ops:
                 assembly.append("  # Unary operator")
@@ -98,9 +108,6 @@ def gen_assembly(interm_lines, mem_dict):
                 assembly.append("e{}:".format(i))
                 assembly.append("  movl $1, {}".format(dest))
                 assembly.append("aft{}:".format(i))
-
-
-
 
         elif len(tokens) == 3:
             if tokens[1] == "=":

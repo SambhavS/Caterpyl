@@ -5,10 +5,10 @@ import string as string_lib
 VAR_CHARS = string_lib.ascii_letters + string_lib.digits + "_"
 DIGITS = string_lib.digits
 WHITESPACE = " \n\t"
-ORDERED_OPS = ("!", "*", "/", "+", "-", "<=", "!=", 
+ORDERED_OPS = ("!", "%", "*", "/", "+", "-", "<=", "!=", 
                   ">=", "<", ">", "==", "!=", "||", "&&")
 UNOPS = ("!",)
-BINOPS = ("*", "/", "+", "-", "<=", ">=", "<", ">", "==", "!=", "||", "&&")
+BINOPS = ("%", "*", "/", "+", "-", "<=", ">=", "<", ">", "==", "!=", "||", "&&")
 
 ################# Tkn Types ###################
 
@@ -36,6 +36,7 @@ class Tkn:
     rbrack = "RIGHT BRACKET"
     lbrack = "LEFT BRACKET"
     equal = "EQUAL"
+    op_eq = "OPERATOR EQUAL"
     special_chars = (lparen, rparen, semicolon, rbrack, lbrack)
     
     intx = "INT"
@@ -61,6 +62,7 @@ def typ(token):
     elif token == "(":      return Tkn.lparen
     elif token == ")":      return Tkn.rparen
     elif token == "=":      return Tkn.equal
+    elif is_op_eq(token):    return Tkn.op_eq
     elif is_int(token):     return Tkn.intx
     elif is_float(token):   return Tkn.floatx
     elif is_char(token):    return Tkn.charx
@@ -68,6 +70,9 @@ def typ(token):
     elif is_un_op(token):   return Tkn.unop
     elif is_var(token):     return Tkn.var
 
+def is_op_eq(token):
+    return len(token) == 2 and token[0] in ("+","-","/","*") and token[1] == "="
+    
 def is_float(token):
     try:
         float(token)
@@ -97,6 +102,27 @@ def attach(parent, child):
     parent.children.append(child)
 
 ########## AST Node Classes ###########
+def get_expression_type(exp, lookup):
+    if exp.op_name in BINOPS or UNOPS:
+        expected_type = "int"
+    if exp.op_name in UNOPS:
+        oper_type = oper_type_dec(exp.oper, lookup).lower()
+        if oper_type == expected_type:
+            return expected_type
+        raise Exception("Type Error!")
+    elif exp.op_name in BINOPS:
+        oper_type1 = oper_type_dec(exp.oper1, lookup).lower()
+        oper_type2 = oper_type_dec(exp.oper2, lookup).lower()
+        if oper_type1 == expected_type and oper_type2 == expected_type:
+            return expected_type
+        raise Exception("Type Error!")
+
+def oper_type_dec(oper, lookup):
+    n_type = node_type(oper).strip()
+    if n_type == "expression": return oper.type_dec
+    elif n_type == "const":  return oper.val_type
+    elif n_type == "var": return lookup[oper.name]
+
 
 # High Level Nodes
 class Prog:
@@ -122,13 +148,14 @@ class Body:
 
 # Expression
 class Expression:
-    def __init__(self, op_name, oper1, oper2):
+    def __init__(self, op_name, oper1, oper2, lookup):
         self.children = []
         self.oper1 = oper1
         self.oper2 = oper2
         attach(self, oper1)
         attach(self, oper2)
         self.op_name = op_name
+        self.type_dec = get_expression_type(self, lookup) 
 
 class UnaryExpression:
     def __init__(self, op_name, oper):
@@ -136,6 +163,7 @@ class UnaryExpression:
         self.oper = oper
         attach(self, oper)
         self.op_name = op_name
+        self.type_dec = get_expression_type(self, lookup) 
 
 # Leaves
 class Const:
@@ -177,11 +205,15 @@ class Assign:
         self.exp = exp
 
 class Decl:
-    def __init__(self, type_dec, var):
+    def __init__(self, type_dec, var, lookup):
         self.children = []
         attach(self, var)
         self.type_dec = type_dec
         self.var = var
+        if var.name not in lookup:
+            lookup[var.name] = type_dec
+        else:
+            raise Exception("TypeError: `{}` already declared".format(var.name))
 
 class Return:
     def __init__(self, ret_val):
@@ -223,15 +255,3 @@ def print_tree(tree, depth=0):
 def node_type(node):
     """Return string correspoonding to type of node"""
     return node.__class__.__name__.lower()        
-
-def make_lookup(ast):
-    """Return dict noting type info about every declared variable"""
-    symb = dict()
-    def traverse(tree):
-        if hasattr(tree, "children"):
-            for child in tree.children:
-                traverse(child)
-        if node_type(tree) == "decl":
-            symb[tree.var.name] = tree.type_dec
-    traverse(ast)
-    return symb 
