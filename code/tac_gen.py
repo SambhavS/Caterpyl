@@ -1,22 +1,31 @@
 from utils import *
 
-def ast_to_IL(ast):
+def ast_to_IL(ast, master_lookup):
     """Sets up register counter and initializes lists to hold IL. 
     Calls helper with 'main' to recursively generate IL and process output"""
+
     def get_count(counter):
+        """ Increments counter"""
         counter[0] += 1
         return counter[0]
 
     def convert_body(parent_func, body):
-        nonlocal lines
         """Recursively traverses tree and generates IL based on node type"""
+        nonlocal lines_dict
+        lines = lines_dict[parent_func]
+        lookup = master_lookup[parent_func]
+
         for statement in body.statements:
             if node_type(statement) == "return":
                 last_reg, sublines = exp_to_IL(r_count, statement.ret_val)
                 lines += sublines
                 if parent_func == "main":
+                    if int(memory):
+                        lines.append("end {}".format(memory))
                     lines.append("retmain {}".format(last_reg))
                 else:
+                    if int(memory):
+                        lines.append("end {}".format(memory))
                     lines.append("ret {}".format(last_reg))
                 break
 
@@ -60,18 +69,35 @@ def ast_to_IL(ast):
                 convert_body(parent_func, statement.true_body)
                 lines.append("goto {}".format(while_header[:-1]))
                 lines.append(after_header)
-                
+            elif node_type(statement) in ("expression", "unaryexpression", "fnccall"):
+                last_reg, sublines = exp_to_IL(r_count, statement)
+                if last_reg[:2] == "_t" and last_reg[2:] and is_int(last_reg[2:]):
+                    r_count[0] -= 1
+                lines += sublines
             elif node_type(statement) == "body":
                 convert_body(parent_func, statement)
 
+    #TODO fill out memory locations dictionary            
+    memory_locations = dict()
     counter = [0]
-    lines = ["Main:"]
-    r_count = [0]
+    lines_dict= dict()
+    r_count = [1]
     for function in ast.children:
-        if function.name == "main":
-            convert_body("main", function.body)
-    lines.append("retmain 0")
-    return lines
+        memory = len([i for i in master_lookup[function.name] if "::" not in i]) * 4
+        lines_dict[function.name] = ["{}:".format(function.name)]
+        for param_name, param_type in function.params:
+            lines_dict[function.name].append("param {}".format(param_name))    
+        if int(memory):
+            lines_dict[function.name].append("start {}".format(memory))
+        convert_body(function.name, function.body)
+        if int(memory):
+            lines_dict[function.name].append("end {}".format(memory))
+        if function.name != "main":
+            lines_dict[function.name].append("ret 0")
+        else:
+            lines_dict["main"].append("retmain 0")
+
+    return lines_dict
 
 def exp_to_IL(r_count, expression):
     """Returns tuple of generated intermediate-language lines that evaluate
@@ -92,7 +118,6 @@ def exp_to_IL(r_count, expression):
             r = helper(exp.oper)
             if r[:2] == "_t" and r[2:] and is_int(r[2:]):
                 r_count[0] -= 1
-                print(1)
             r_count[0] += 1
             r_name = "_t{}".format(r_count[0])
             lines.append("{} = {} {}".format(r_name, exp.op_name, r))
@@ -104,6 +129,19 @@ def exp_to_IL(r_count, expression):
             return r_name
         elif node_type(exp) == "var":
             return exp.name
+        elif node_type(exp) == "fnccall":
+            regs = [helper(arg) for arg in exp.arguments]
+            for reg in regs[::-1]:
+                lines.append("pushParam {}".format(reg))
+            # allocate space for variables, push variables to registers?
+            func_name = exp.called_func
+            param_space = len(regs) * 4
+            if param_space:
+                lines.append("popParamSpace {}".format(len(regs) * 4))
+            r_count[0] += 1
+            r_name = "_t{}".format(r_count[0])
+            lines.append("{} = call {}".format(r_name, func_name))
+            return r_name
         else:
             raise Exception("BAD IL")
     last_reg = helper(expression)

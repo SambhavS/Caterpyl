@@ -11,18 +11,19 @@ def main():
         contents = f.read()
 
     # Create & print AST
-    lookup, ast = main_AST(contents, {})
-    print_tree(ast)
-
+    master_lookup, ast = main_AST(contents, {})
+    #print_tree(ast)
+    
     # Convert AST and print resulting IL
-    interm_lines = ast_to_IL(ast)   
-    print_IL(interm_lines)
-
-    # Define dicts for type and memory info
-    mem_dict = {var:i for i, var in enumerate(lookup.keys())}
+    interm_dict = ast_to_IL(ast, master_lookup)   
+    interm_lines = interm_dict["main"]
+    for key, line_sect in interm_dict.items():
+        if key != "main":
+            interm_lines += line_sect
+    #print_IL(interm_lines)
     
     # Generate and print assembly
-    assembly = gen_assembly(interm_lines, mem_dict)
+    assembly = gen_assembly(interm_lines, master_lookup)
     print_lst(assembly)
     
     # Write generated assembly to file

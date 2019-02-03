@@ -1,7 +1,10 @@
 int main(){
-    //Welcome to Caterpyl! 
-    int x = 1;
-    int y = 2;
-    int z = x + y;
-    return z;
+    int a = foo();
+    int z = foo();
+    return a*z;
+}
+int foo(){
+    int b = 2;
+    int c = 3;
+    return b * c;
 }

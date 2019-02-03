@@ -37,7 +37,8 @@ class Tkn:
     lbrack = "LEFT BRACKET"
     equal = "EQUAL"
     op_eq = "OPERATOR EQUAL"
-    special_chars = (lparen, rparen, semicolon, rbrack, lbrack)
+    comma = "COMMA"
+    special_chars = (lparen, rparen, semicolon, rbrack, lbrack, comma)
     
     intx = "INT"
     floatx = "FLOAT"
@@ -62,6 +63,7 @@ def typ(token):
     elif token == "(":      return Tkn.lparen
     elif token == ")":      return Tkn.rparen
     elif token == "=":      return Tkn.equal
+    elif token == ",":          return Tkn.comma
     elif is_op_eq(token):    return Tkn.op_eq
     elif is_int(token):     return Tkn.intx
     elif is_float(token):   return Tkn.floatx
@@ -121,7 +123,7 @@ def oper_type_dec(oper, lookup):
     n_type = node_type(oper).strip()
     if n_type == "expression": return oper.type_dec
     elif n_type == "const":  return oper.val_type
-    elif n_type == "var": return lookup[oper.name]
+    elif n_type == "var": return lookup[oper.name]["type_dec"]
 
 
 # High Level Nodes
@@ -132,12 +134,22 @@ class Prog:
             attach(self, subtree)
 
 class Func:
-    def __init__(self, ret_type, name, body):
+    def __init__(self, ret_type, name, body, params, lookup):
         self.children = []
         attach(self, body)
+        self.params = params
         self.ret_type = ret_type
         self.name = name
         self.body = body
+        lookup["{}::TYPE_INFO".format(name)] = {"type_dec": ret_type, "type":"func"}
+
+class FncCall:
+    def __init__(self, called_func, arguments):
+        self.children = []
+        self.arguments = arguments
+        for arg in arguments:
+            attach(self, arg)
+        self.called_func = called_func
 
 class Body:
     def __init__(self, statements):
@@ -158,7 +170,7 @@ class Expression:
         self.type_dec = get_expression_type(self, lookup) 
 
 class UnaryExpression:
-    def __init__(self, op_name, oper):
+    def __init__(self, op_name, oper, lookup):
         self.children = []
         self.oper = oper
         attach(self, oper)
@@ -211,7 +223,7 @@ class Decl:
         self.type_dec = type_dec
         self.var = var
         if var.name not in lookup:
-            lookup[var.name] = type_dec
+            lookup[var.name] = {"type_dec": type_dec, "type":"func"}
         else:
             raise Exception("TypeError: `{}` already declared".format(var.name))
 
@@ -246,6 +258,7 @@ def print_tree(tree, depth=0):
     string += " ({})".format(tree.op_name) if hasattr(tree, "op_name") else ""
     string += " ({})".format(tree.name) if hasattr(tree, "name") else ""
     string += " ({})".format(tree.val) if hasattr(tree, "val") else ""
+    string += " {}".format(tree.params) if hasattr(tree, "params") else ""
     print(string)
     if hasattr(tree, "children"):
         children = tree.children

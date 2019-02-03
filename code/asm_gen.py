@@ -1,9 +1,12 @@
 from utils import *
 
-def gen_assembly(interm_lines, mem_dict):
+def gen_assembly(interm_lines, master_lookup):
     """Converts TAC representation into valid x86_64 assembly. Returns lines of assembly"""
-
     def to_asm(tok):
+        if last_func == "main":
+            offset = 0
+        else:
+            offset = 12
         """ Converts individual TAC token to assembly equivelent"""
         if tok in reg_dict:     return reg_dict[tok]
         elif tok in opers:      return opers[tok]
@@ -11,18 +14,26 @@ def gen_assembly(interm_lines, mem_dict):
         elif tok in comps:      return comps[tok]
         elif tok in un_ops:     return un_ops[tok]
         elif is_int(tok):       return "${}".format(tok)
-        elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok] * -8)
+        elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok] * -4 - offset)
         else:
             raise Exception("TypeError: Variable `{}` not declared".format(tok))
 
+    def qpush(string):
+        if not string:
+            return
+        if string[-1] == ":":
+            assembly.append(string)
+        else:
+            assembly.append("  {}".format(string))
+    func_stack = ["main"]
+    params = []
     # Define equivalent register names and set up start of assembly file
     assembly = []
-    stack_space = len(mem_dict) * 8
-    assembly.append("  # Setup stack/base pointer")
-    assembly.append(".global start")
-    assembly.append("start:")
-    assembly.append("  movq %rsp, %rbp")
-    assembly.append("  subq ${}, %rsp".format(stack_space))
+    qpush("#   Setup stack/base pointer, base offset")
+    qpush(".global start")
+    qpush("start:")
+    qpush("movq %rsp, %rbp")
+
     reg_dict = {"_t1": "%r8d", "_t2": "%r9d", "_t3": "%r10d", "_t4": "%r11d",
                 "_t5": "%r12d", "_t6": "%r13d", "_t7": "%r14d"}
     opers = {"*":"imul", "-":"sub", "+":"add", "/":"div", "%":"div"}
@@ -37,108 +48,144 @@ def gen_assembly(interm_lines, mem_dict):
         if len(tokens) == 5:
             if tokens[0] == "ifTrue":
                 cond_reg, dest = tokens[1], tokens[-1]
-                assembly.append("  # IfTrue branch")
-                assembly.append("  cmpl $0, {}".format(to_asm(cond_reg)))
-                assembly.append("  jne {}".format(dest))
+                qpush("cmpl $0, {}".format(to_asm(cond_reg)))
+                qpush("jne {}".format(dest))
             elif tokens[0] == "ifFalse":
-                assembly.append("  # IfFalse branch")
                 cond_reg, dest = tokens[1], tokens[-1]
-                assembly.append("  cmpl $0, {}".format(to_asm(cond_reg)))
-                assembly.append("  je {}".format(dest))
+                qpush("cmpl $0, {}".format(to_asm(cond_reg)))
+                qpush("je {}".format(dest))
 
             elif tokens[3] in opers:
-                assembly.append("  # Arithmetic operation")
                 dest, source1, source2 = to_asm(tokens[0]), to_asm(tokens[2]), to_asm(tokens[4])
                 instr = to_asm(tokens[3])
                 if instr == "div":
-                    assembly.append("  movl $0, %edx")
-                    assembly.append("  movl {}, %eax".format(source1))
-                    assembly.append("  movl {}, %ecx".format(source2))
-                    assembly.append("  div %ecx")
+                    qpush("movl $0, %edx")
+                    qpush("movl {}, %eax".format(source1))
+                    qpush("movl {}, %ecx".format(source2))
+                    qpush("div %ecx")
                     value = "%edx" if tokens[3] == "%" else "%eax"
-                    assembly.append("  movl {}, {}".format(value, dest))
+                    qpush("movl {}, {}".format(value, dest))
                 else:
-                    assembly.append("  movl {}, %r15d".format(source1))
-                    assembly.append("  {}  {}, %r15d".format(instr, source2))
-                    assembly.append("  movl %r15d, {}".format(dest))
+                    qpush("movl {}, %r15d".format(source1))
+                    qpush("{}  {}, %r15d".format(instr, source2))
+                    qpush("movl %r15d, {}".format(dest))
 
             elif tokens[3] in log_ops:
-
-                assembly.append("  # Logical operation")
                 operator = to_asm(tokens[3])
                 dest, source1, source2 = to_asm(tokens[0]), to_asm(tokens[2]), to_asm(tokens[4])
                 if operator == "and":
                     instr, match, fall_through = "je", 0, 1
                 elif operator == "or":
                     instr, match, fall_through = "jne", 1, 0
-                assembly.append("  movl {}, %r15d".format(source1))
-                assembly.append("  cmp $0, %r15d")
-                assembly.append("  {} e{}".format(instr, i))
-                assembly.append("  movl {}, %r15d".format(source2))
-                assembly.append("  cmp $0, %r15d")
-                assembly.append("  {} e{}".format(instr, i))
-                assembly.append("  movl ${}, {}".format(fall_through, dest))
-                assembly.append("  jmp aft{}".format(i))
-                assembly.append("e{}:".format(i))
-                assembly.append("  movl ${}, {}".format(match, dest))
-                assembly.append("aft{}:".format(i))
+                qpush("movl {}, %r15d".format(source1))
+                qpush("cmp $0, %r15d")
+                qpush("{} e{}".format(instr, i))
+                qpush("movl {}, %r15d".format(source2))
+                qpush("cmp $0, %r15d")
+                qpush("{} e{}".format(instr, i))
+                qpush("movl ${}, {}".format(fall_through, dest))
+                qpush("jmp aft{}".format(i))
+                qpush("e{}:".format(i))
+                qpush("movl ${}, {}".format(match, dest))
+                qpush("aft{}:".format(i))
                     
             elif tokens[3] in comps:
-                assembly.append("  # Checking comparison")
                 dest, oper, oper1, oper2 = to_asm(tokens[0]), to_asm(tokens[3]), to_asm(tokens[2]), to_asm(tokens[4])
-                assembly.append("  movl {}, %r15d".format(oper1))
-                assembly.append("  cmp {}, %r15d".format(oper2))
-                assembly.append("  {} e{}".format(oper, i))
-                assembly.append("  movl $0, {}".format(dest))
-                assembly.append("  jmp aft{}".format(i))
-                assembly.append("e{}:".format(i))
-                assembly.append("  movl $1, {}".format(dest))
-                assembly.append("aft{}:".format(i))
+                qpush("movl {}, %r15d".format(oper1))
+                qpush("cmp {}, %r15d".format(oper2))
+                qpush("{} e{}".format(oper, i))
+                qpush("movl $0, {}".format(dest))
+                qpush("jmp aft{}".format(i))
+                qpush("e{}:".format(i))
+                qpush("movl $1, {}".format(dest))
+                qpush("aft{}:".format(i))
 
         elif len(tokens) == 4:
             if tokens[2] in un_ops:
-                assembly.append("  # Unary operator")
                 operator = to_asm(tokens[2])
                 dest, operand = to_asm(tokens[0]), to_asm(tokens[3])
-                assembly.append("  movl {}, %r15d".format(operand))
-                assembly.append("  cmp $0, %r15d")
-                assembly.append("  je e{}".format(i))
-                assembly.append("  movl $0, {}".format(dest))
-                assembly.append("  jmp aft{}".format(i))
-                assembly.append("e{}:".format(i))
-                assembly.append("  movl $1, {}".format(dest))
-                assembly.append("aft{}:".format(i))
+                qpush("movl {}, %r15d".format(operand))
+                qpush("cmp $0, %r15d")
+                qpush("je e{}".format(i))
+                qpush("movl $0, {}".format(dest))
+                qpush("jmp aft{}".format(i))
+                qpush("e{}:".format(i))
+                qpush("movl $1, {}".format(dest))
+                qpush("aft{}:".format(i))
+
+            elif tokens[2] == "call":
+                qpush("#   Call")
+                func_name = tokens[3]
+                ret_address = to_asm(tokens[0])
+                # Push base pointer
+                qpush("subq $4, %rsp")
+                qpush("movq %rbp, 0(%rsp)")
+                # Change base pointer
+                qpush("movq %rsp, %rbp")
+                for param in params:
+                    asm_param = to_asm(param)
+                    qpush("subq $4, %rsp")
+                    qpush("movl {}, 0(%rsp)".format(asm_param))
+                params = []
+                func_stack.append(func_name)
+                qpush("call {}".format(func_name))
+                func_stack.pop()
+                # Clean by moving stack up to child base pointer
+                qpush("movq %rbp, %rsp")
+                # Restore old base
+                qpush("movq 0(%rsp), %rbp")
+                qpush("addq $4, %rsp")
+                # Move edi to register
+                qpush("movl %edi, {}".format(ret_address))
 
         elif len(tokens) == 3:
             if tokens[1] == "=":
-                assembly.append("  # Assignment")
                 source, dest = to_asm(tokens[2]), to_asm(tokens[0])
                 if "(" in source and "(" in dest:
-                    assembly.append("  movl {}, %r15d".format(source))
-                    assembly.append("  movl %r15d, {}".format(dest))
+                    qpush("movl {}, %r15d".format(source))
+                    qpush("movl %r15d, {}".format(dest))
                 else:
-                    assembly.append("  movl {}, {}".format(source, dest))
+                    qpush("movl {}, {}".format(source, dest))
             elif tokens[0] == "goto":
-                assembly.append("  # Goto")
                 dest = tokens[-1]
-                assembly.append("  jmp {}".format(dest))
+                qpush("jmp {}".format(dest))
 
         elif len(tokens) == 2:
             if tokens[0] == "retmain":
-                assembly.append("  # Return out of `main`")
                 source = to_asm(tokens[1])
-                assembly.append("  movl {}, %edi".format(source))
-                assembly.append("  movl $0x2000001, %eax")
-                assembly.append("  syscall")
+                qpush("movl {}, %edi".format(source))
+                qpush("movl $0x2000001, %eax")
+                qpush("syscall")
             elif tokens[0] == "ret":
-                # needs work for non-main functions
                 source = to_asm(tokens[1])
-                assembly.append("  movl {}, %edi".format(source))
-                assembly.append("  ret")
+                qpush("movl {}, %edi".format(source))
+                qpush("ret")
             elif tokens[0] == "-->":
-                label = tokens[-1]
-                assembly.append(label)
-                
+                label = tokens[1]
+                qpush(label)
+            elif tokens[0] == "start":
+                stack_space = tokens[1]
+                qpush("subq ${}, %rsp".format(stack_space))
+                for arg in lookup:
+                    if "::" not in arg:
+                        mem_dict[arg] = len(mem_dict)
+            elif tokens[0] in ("end","popParamSpace"):
+                stack_space = tokens[1]
+                qpush("addq ${}, %rsp".format(stack_space))
+            elif tokens[0] == "pushParam":
+                reg = tokens[1]
+                params.append(reg)
+            elif tokens[0] == "param":
+                param = tokens[1]
+                mem_dict[param] = len(mem_dict)
 
-    assembly.append("  addq ${}, %rsp".format(stack_space))
+        elif len(tokens) == 1:
+            qpush(tokens[0])
+            # Move base pointer to stack pointer
+            func_name = tokens[0][:-1]
+            last_func = func_name
+            lookup = master_lookup[func_name]
+            mem_dict = {}
+    
+                    
     return assembly
