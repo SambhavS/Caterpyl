@@ -1,10 +1,9 @@
 int main(){
-    int a = foo();
-    int z = foo();
-    return a*z;
+    int x = triple(3);
+    int y = triple(4);
+    return x;
 }
-int foo(){
-    int b = 2;
-    int c = 3;
-    return b * c;
+
+int triple(int a){
+    return a;
 }

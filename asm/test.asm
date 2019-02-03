@@ -4,49 +4,57 @@ start:
   movq %rsp, %rbp
 main:
   subq $8, %rsp
+  movl $3, %r9d
+  # popParamSpace
+  addq $4, %rsp
   #   Call
   subq $4, %rsp
   movq %rbp, 0(%rsp)
   movq %rsp, %rbp
-  call foo
+  subq $4, %rsp
+  movl %r9d, 0(%rsp)
+  call triple
   movq %rbp, %rsp
   movq 0(%rsp), %rbp
   addq $4, %rsp
-  movl %edi, %r9d
-  movl %r9d, 0(%rbp)
+  movl %edi, %r10d
+  movl %r10d, 0(%rbp)
+  movl $4, %r10d
+  # popParamSpace
+  addq $4, %rsp
   #   Call
   subq $4, %rsp
   movq %rbp, 0(%rsp)
   movq %rsp, %rbp
-  call foo
+  subq $4, %rsp
+  movl %r10d, 0(%rsp)
+  call triple
   movq %rbp, %rsp
   movq 0(%rsp), %rbp
   addq $4, %rsp
-  movl %edi, %r9d
-  movl %r9d, -4(%rbp)
-  movl 0(%rbp), %r15d
-  imul  -4(%rbp), %r15d
-  movl %r15d, %r9d
+  movl %edi, %r11d
+  movl %r11d, -4(%rbp)
+  # end
   addq $8, %rsp
-  movl %r9d, %edi
+   
+   
+  movl 0(%rbp), %edi
   movl $0x2000001, %eax
   syscall
+  # end
   addq $8, %rsp
+   
+   
   movl $0, %edi
   movl $0x2000001, %eax
   syscall
-foo:
-  subq $8, %rsp
-  movl $2, %r10d
-  movl %r10d, -12(%rbp)
-  movl $3, %r10d
-  movl %r10d, -16(%rbp)
-  movl -12(%rbp), %r15d
-  imul  -16(%rbp), %r15d
-  movl %r15d, %r10d
-  addq $8, %rsp
-  movl %r10d, %edi
+triple:
+  subq $4, %rsp
+  # end
+  addq $4, %rsp
+  movl -4(%rbp), %edi
   ret
-  addq $8, %rsp
+  # end
+  addq $4, %rsp
   movl $0, %edi
   ret
