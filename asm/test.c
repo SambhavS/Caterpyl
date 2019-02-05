@@ -1,9 +1,8 @@
 int main(){
-    return bar();
+    return foo();
 }
 int foo(){
     return bar();
 }
 int bar(){
-    return 5;
 }
