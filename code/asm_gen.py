@@ -6,7 +6,7 @@ def gen_assembly(interm_lines, master_lookup):
         if last_func == "main":
             offset = 0
         else:
-            offset = 12
+            offset = -12
         """ Converts individual TAC token to assembly equivelent"""
         if tok in reg_dict:     return reg_dict[tok]
         elif tok in opers:      return opers[tok]
@@ -14,7 +14,7 @@ def gen_assembly(interm_lines, master_lookup):
         elif tok in comps:      return comps[tok]
         elif tok in un_ops:     return un_ops[tok]
         elif is_int(tok):       return "${}".format(tok)
-        elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok] * -4 - offset)
+        elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok] * -4 + offset)
         else:
             raise Exception("TypeError: Variable `{}` not declared".format(tok))
 
@@ -167,17 +167,20 @@ def gen_assembly(interm_lines, master_lookup):
                 stack_space = tokens[1]
                 qpush("subq ${}, %rsp".format(stack_space))
                 for arg in lookup:
-                    if "::" not in arg:
+                    if "::" not in arg and arg not in mem_dict:
                         mem_dict[arg] = len(mem_dict)
+
             elif tokens[0] in ("end","popParamSpace"):
                 stack_space = tokens[1]
+                qpush("# {}".format(tokens[0]))
                 qpush("addq ${}, %rsp".format(stack_space))
             elif tokens[0] == "pushParam":
                 reg = tokens[1]
                 params.append(reg)
             elif tokens[0] == "param":
                 param = tokens[1]
-                mem_dict[param] = len(mem_dict)
+                mem_dict[param] = len(mem_dict) - 2
+
 
         elif len(tokens) == 1:
             qpush(tokens[0])

@@ -133,14 +133,16 @@ def exp_to_IL(r_count, expression):
             regs = [helper(arg) for arg in exp.arguments]
             for reg in regs[::-1]:
                 lines.append("pushParam {}".format(reg))
+            for reg in regs[::-1]:
+                r_count[0] -= 1
             # allocate space for variables, push variables to registers?
             func_name = exp.called_func
             param_space = len(regs) * 4
-            if param_space:
-                lines.append("popParamSpace {}".format(len(regs) * 4))
             r_count[0] += 1
             r_name = "_t{}".format(r_count[0])
             lines.append("{} = call {}".format(r_name, func_name))
+            if param_space:
+                lines.append("popParamSpace {}".format(len(regs) * 4))
             return r_name
         else:
             raise Exception("BAD IL")

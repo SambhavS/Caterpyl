@@ -292,7 +292,6 @@ def main_AST(program, master_lookup):
         if token:
             tokens.append(token)
             token = ""
-        #print(tokens)
         return [t.strip() for t in tokens if t.strip()]
 
 

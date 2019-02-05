@@ -1,4 +1,5 @@
 # Todo
+- fix broken recursion
 - which data types?
 - user definable functions
 - printing
