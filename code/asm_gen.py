@@ -126,6 +126,7 @@ def gen_assembly(interm_lines, master_lookup):
                 for param in params:
                     asm_param = to_asm(param)
                     qpush("subq $4, %rsp")
+                    qpush("#FIND")
                     qpush("movl {}, 0(%rsp)".format(asm_param))
                 params = []
                 func_stack.append(func_name)
