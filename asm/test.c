@@ -1,9 +1,9 @@
 int main(){
-    int a = simp(1);
-    int b = simp(1):
-    return a + b;
+    return bar();
 }
-
-int simp(int x){
-    return 1;
+int foo(){
+    return bar();
+}
+int bar(){
+    return 5;
 }
