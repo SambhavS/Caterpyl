@@ -77,7 +77,6 @@ def ast_to_IL(ast, master_lookup):
             elif node_type(statement) == "body":
                 convert_body(parent_func, statement)
 
-    #TODO fill out memory locations dictionary            
     memory_locations = dict()
     counter = [0]
     lines_dict= dict()
@@ -85,7 +84,7 @@ def ast_to_IL(ast, master_lookup):
     for function in ast.children:
         memory = len([i for i in master_lookup[function.name] if "::" not in i]) * 4
         lines_dict[function.name] = ["{}:".format(function.name)]
-        for param_name, param_type in function.params:
+        for param_name, param_type in function.params[::-1]:
             lines_dict[function.name].append("param {}".format(param_name))    
         if int(memory):
             lines_dict[function.name].append("start {}".format(memory))
@@ -142,7 +141,7 @@ def exp_to_IL(r_count, expression):
             r_name = "_t{}".format(r_count[0])
             lines.append("{} = call {}".format(r_name, func_name))
             if param_space:
-                lines.append("popParamSpace {}".format(len(regs) * 4))
+                lines.append("popParamSpace {}".format(param_space))
             return r_name
         else:
             raise Exception("BAD IL")

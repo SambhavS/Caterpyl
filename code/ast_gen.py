@@ -76,7 +76,6 @@ def main_AST(program, master_lookup):
                 params = parse_params(tokens)
                 check_skip(tokens, Tkn.rparen, "Check `)`")
                 check_skip(tokens, Tkn.lbrack, "Check `{`")
-                master_lookup[func_name] = {}
                 lookup = master_lookup[func_name]
                 for param_name, param_type in params:
                     lookup[param_name] = {"type_dec": param_type, "type":"var"}
@@ -171,7 +170,6 @@ def main_AST(program, master_lookup):
 
     def raw_expression_list(tokens, lookup, ind=0):
         """Returns a list of expression terms that need to be combined to form an AST"""
-
         def last_ind(tokens, start):
             """Helper function that returns the index corresponding to the end of an expression"""
             final_ind = start+1
@@ -222,9 +220,15 @@ def main_AST(program, master_lookup):
             ind += 1
             subtokens = tokens[ind+1:]
             args = parse_args(subtokens, lookup)
-            func_call = FncCall(called_func=called_func, arguments=args)
-            ind += len(tokens) - len(subtokens)
-            return [func_call], ind
+            func_call = FncCall(called_func=called_func, arguments=args, master_lookup=master_lookup)
+            ind += len(tokens[ind-1:]) - len(subtokens)
+            if typ(tokens[ind]) is Tkn.binop:
+                operator = tokens[ind]
+                ind += 1
+                second_exp_list, ind = raw_expression_list(tokens, lookup, ind)
+                return [func_call, operator] + second_exp_list, ind
+            elif typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen, Tkn.comma]:
+                return [func_call], ind
 
         elif typ(tokens[ind]) in Tkn.constants or typ(tokens[ind]) is Tkn.var:
             # First expression is constant/variable
@@ -255,7 +259,35 @@ def main_AST(program, master_lookup):
                 args.append(exp_AST(tokens, lookup))
                 while tokens[0] in ",":
                     tokens.pop(0)
+        
     ### AST Utils ###
+    def populate_with_funcs(tokens, master_lookup):
+        func_names = []
+        b_lvl = 0
+        curr_func = {}
+        i = 0
+        while i < len(tokens):
+            tok = tokens[i]
+            if tok == "{":
+                b_lvl += 1
+            elif tok == "}":
+                b_lvl -= 1
+            elif b_lvl == 0:
+                if len(curr_func) == 0:
+                    curr_func["type_dec"] = tok
+                elif len(curr_func) == 1:
+                    curr_func["name"] = tok
+                    func_names.append(curr_func)
+                    curr_func = {}
+                    while tokens[i+1] != "{":
+                        i += 1
+                else:
+                    raise SyntaxError("Incorrect function declaration")
+            i += 1
+        for d in func_names:
+            name = d["name"]
+            master_lookup[name] = {"{}::TYPE_INFO".format(name) :d["type_dec"]}
+        print(master_lookup)
 
     def wrapNode(val):
         """ Wraps value in proper node class"""
@@ -302,5 +334,6 @@ def main_AST(program, master_lookup):
         tokens.pop(0)
 
     tokens = tokenize(program)
+    populate_with_funcs(tokens, master_lookup)
     subtrees = parse_statements(tokens, master_lookup, func_dec=True)
     return master_lookup, Prog(subtrees)

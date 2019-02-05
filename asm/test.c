@@ -1,8 +1,9 @@
 int main(){
-    return foo();
+    return fact(10, 20);
 }
-int foo(){
-    return bar();
-}
-int bar(){
+int fact(int x, int y){
+    if(x == 1){
+        return 1 + y;
+    }
+    return x * fact(x-1, y);
 }

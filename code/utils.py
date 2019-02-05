@@ -121,9 +121,10 @@ def get_expression_type(exp, lookup):
 
 def oper_type_dec(oper, lookup):
     n_type = node_type(oper).strip()
-    if n_type == "expression": return oper.type_dec
-    elif n_type == "const":  return oper.val_type
-    elif n_type == "var": return lookup[oper.name]["type_dec"]
+    if n_type == "expression":  return oper.type_dec
+    elif n_type == "const":     return oper.val_type
+    elif n_type == "var":       return lookup[oper.name]["type_dec"]
+    elif n_type == "fnccall":   return oper.master_lookup[oper.called_func]["{}::TYPE_INFO".format(oper.called_func)]
 
 
 # High Level Nodes
@@ -144,12 +145,13 @@ class Func:
         lookup["{}::TYPE_INFO".format(name)] = {"type_dec": ret_type, "type":"func"}
 
 class FncCall:
-    def __init__(self, called_func, arguments):
+    def __init__(self, called_func, arguments, master_lookup):
         self.children = []
         self.arguments = arguments
         for arg in arguments:
             attach(self, arg)
         self.called_func = called_func
+        self.master_lookup = master_lookup
 
 class Body:
     def __init__(self, statements):

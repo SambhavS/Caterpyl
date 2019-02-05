@@ -12,7 +12,7 @@ def main():
 
     # Create & print AST
     master_lookup, ast = main_AST(contents, {})
-    #print_tree(ast)
+    print_tree(ast)
     
     # Convert AST and print resulting IL
     interm_dict = ast_to_IL(ast, master_lookup)   
@@ -20,7 +20,7 @@ def main():
     for key, line_sect in interm_dict.items():
         if key != "main":
             interm_lines += line_sect
-    print_IL(interm_lines)
+    #print_IL(interm_lines)
     
     # Generate and print assembly
     assembly = gen_assembly(interm_lines, master_lookup)

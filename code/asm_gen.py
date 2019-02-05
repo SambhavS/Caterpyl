@@ -114,11 +114,12 @@ def gen_assembly(interm_lines, master_lookup):
                 qpush("aft{}:".format(i))
 
             elif tokens[2] == "call":
-                qpush("#   Call")
+                qpush("#----------")
                 func_name = tokens[3]
                 ret_address = to_asm(tokens[0])
                 # Push base pointer
-                qpush("subq $4, %rsp")
+                # ??
+                qpush("subq $8, %rsp")
                 qpush("movq %rbp, 0(%rsp)")
                 # Change base pointer
                 qpush("movq %rsp, %rbp")
@@ -134,9 +135,11 @@ def gen_assembly(interm_lines, master_lookup):
                 qpush("movq %rbp, %rsp")
                 # Restore old base
                 qpush("movq 0(%rsp), %rbp")
-                qpush("addq $4, %rsp")
                 # Move edi to register
                 qpush("movl %edi, {}".format(ret_address))
+                #??
+                qpush("addq $4, %rsp")
+                qpush("#----------")
 
         elif len(tokens) == 3:
             if tokens[1] == "=":
@@ -172,7 +175,6 @@ def gen_assembly(interm_lines, master_lookup):
 
             elif tokens[0] in ("end","popParamSpace"):
                 stack_space = tokens[1]
-                qpush("# {}".format(tokens[0]))
                 qpush("addq ${}, %rsp".format(stack_space))
             elif tokens[0] == "pushParam":
                 reg = tokens[1]
