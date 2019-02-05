@@ -8,8 +8,8 @@ Currently, it has the following features:
 - returns value from main
 - type declaration checking
 - int variables, integer literals, integer expressions 
-  (like `int x = 10;` and `int y = (2 * 10 + 7 * (3 + 1)) - 200;)
+  (like `int x = 10;` and `int y = (2 * 10 + 7 * (3 + 1)) - 200;`)
 - boolean operators (`&&`, `||`, `!`)
-- arithmetic operators (`+`, `*`, `-`, `/`, '%')
+- arithmetic operators (`+`, `*`, `-`, `/`, `%`)
 - comparators (eg. `==`, `<`, `>`, `<=`, `>=`, `!=`)
 - control structures (`if`, `else`, `while`)
