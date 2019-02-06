@@ -1,7 +1,6 @@
 # Todo
 HIGH PRIORITY
-- fix broken recursion
-- fix broken parsing for function calls 
+- fix adding current temps to stack? (:())
 
 After
 - which data types?

@@ -6,7 +6,7 @@ def gen_assembly(interm_lines, master_lookup):
         if last_func == "main":
             offset = 0
         else:
-            offset = -12
+            offset = -8
         """ Converts individual TAC token to assembly equivelent"""
         if tok in reg_dict:     return reg_dict[tok]
         elif tok in opers:      return opers[tok]
@@ -118,28 +118,32 @@ def gen_assembly(interm_lines, master_lookup):
                 func_name = tokens[3]
                 ret_address = to_asm(tokens[0])
                 # Push base pointer
-                # ??
-                qpush("subq $8, %rsp")
-                qpush("movq %rbp, 0(%rsp)")
+                qpush("subq $4, %rsp")
+                qpush("movq %rbp, -4(%rsp)")
                 # Change base pointer
+                qpush("subq $4, %rsp")
                 qpush("movq %rsp, %rbp")
                 for param in params:
                     asm_param = to_asm(param)
                     qpush("subq $4, %rsp")
                     qpush("movl {}, %r15d".format(asm_param))
                     qpush("movl %r15d, 0(%rsp)".format(asm_param))
-                params = []
                 func_stack.append(func_name)
                 qpush("call {}".format(func_name))
                 func_stack.pop()
                 # Clean by moving stack up to child base pointer
                 qpush("movq %rbp, %rsp")
                 # Restore old base
-                qpush("movq 0(%rsp), %rbp")
+                qpush("addq $4, %rsp")
+                qpush("movq -4(%rsp), %rbp")
+                # Get stack back to original place
+                qpush("addq $4, %rsp")
                 # Move edi to register
                 qpush("movl %edi, {}".format(ret_address))
-                #??
-                qpush("addq $4, %rsp")
+                # Clean pushed parameters
+                for param in params:
+                    qpush("subq $4, %rsp")
+                params = []
                 qpush("#----------")
 
         elif len(tokens) == 3:
@@ -182,7 +186,7 @@ def gen_assembly(interm_lines, master_lookup):
                 params.append(reg)
             elif tokens[0] == "param":
                 param = tokens[1]
-                mem_dict[param] = len(mem_dict) - 2
+                mem_dict[param] = len(mem_dict) - 1
 
 
         elif len(tokens) == 1:

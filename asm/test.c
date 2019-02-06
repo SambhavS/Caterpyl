@@ -1,12 +1,9 @@
 int main(){
-    return foo();
+    return fact(5);
 }
-int foo(){
-    return max(1, 2);
-}
-int max(int a, int b){
-    if(a >b ){
-        return a;
+int fact(int n){
+    if(n == 1){
+        return 1;
     }
-    return b;
+    return fact(n-1) * 3;
 }
