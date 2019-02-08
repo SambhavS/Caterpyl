@@ -1,0 +1,136 @@
+# Abstract Syntax Tree (AST)
+|Prog
+   |Func (main) []
+      |Body
+         |Body
+            |Decl (int)
+               |Var (N)
+            |Assign
+               |Var (N)
+               |Const (10)
+         |Body
+            |Decl (int)
+               |Var (temp)
+            |Assign
+               |Var (temp)
+               |Const (0)
+         |Body
+            |Decl (int)
+               |Var (f1)
+            |Assign
+               |Var (f1)
+               |Const (0)
+         |Body
+            |Decl (int)
+               |Var (f2)
+            |Assign
+               |Var (f2)
+               |Const (1)
+         |While
+            |Expression (int) (>)
+               |Var (N)
+               |Const (0)
+            |Body
+               |Assign
+                  |Var (temp)
+                  |Var (f1)
+               |Assign
+                  |Var (f1)
+                  |Var (f2)
+               |Assign
+                  |Var (f2)
+                  |Expression (int) (+)
+                     |Var (f1)
+                     |Var (temp)
+               |Assign
+                  |Var (N)
+                  |Expression (int) (-)
+                     |Var (N)
+                     |Const (1)
+         |Return
+            |Var (f1)
+
+#Three Adress Code
+main:
+   start 16
+   _t2 = 10
+   N = _t2
+   _t2 = 0
+   temp = _t2
+   _t2 = 0
+   f1 = _t2
+   _t2 = 1
+   f2 = _t2
+--> W1:
+   _t2 = 0
+   _t2 = N > _t2
+   ifFalse _t2 goto --> A2
+   temp = f1
+   f1 = f2
+   _t2 = f1 + temp
+   f2 = _t2
+   _t2 = 1
+   _t2 = N - _t2
+   N = _t2
+   goto --> W1
+--> A2:
+   end 16
+   retmain f1
+   end 16
+   retmain 0
+
+
+## Final Generated x86_64 Assembly
+
+
+  #   Setup stack/base pointer, base offset
+  .global start
+start:
+  movq %rsp, %rbp
+main:
+  subq $16, %rsp
+  movl $10, %r9d
+  movl %r9d, 0(%rbp)
+  movl $0, %r9d
+  movl %r9d, -4(%rbp)
+  movl $0, %r9d
+  movl %r9d, -8(%rbp)
+  movl $1, %r9d
+  movl %r9d, -12(%rbp)
+W1:
+  movl $0, %r9d
+  movl 0(%rbp), %r15d
+  cmp %r9d, %r15d
+  jg e12
+  movl $0, %r9d
+  jmp aft12
+e12:
+  movl $1, %r9d
+aft12:
+  cmpl $0, %r9d
+  je A2
+  movl -8(%rbp), %r15d
+  movl %r15d, -4(%rbp)
+  movl -12(%rbp), %r15d
+  movl %r15d, -8(%rbp)
+  movl -8(%rbp), %r15d
+  add  -4(%rbp), %r15d
+  movl %r15d, %r9d
+  movl %r9d, -12(%rbp)
+  movl $1, %r9d
+  movl 0(%rbp), %r15d
+  sub  %r9d, %r15d
+  movl %r15d, %r9d
+  movl %r9d, 0(%rbp)
+  jmp W1
+A2:
+  addq $16, %rsp
+  movl -8(%rbp), %edi
+  movl $0x2000001, %eax
+  syscall
+  addq $16, %rsp
+  movl $0, %edi
+  movl $0x2000001, %eax
+  syscall
+
+

@@ -287,7 +287,6 @@ def main_AST(program, master_lookup):
         for d in func_names:
             name = d["name"]
             master_lookup[name] = {"{}::TYPE_INFO".format(name) :d["type_dec"]}
-        print(master_lookup)
 
     def wrapNode(val):
         """ Wraps value in proper node class"""
