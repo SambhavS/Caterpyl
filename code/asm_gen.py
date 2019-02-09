@@ -6,6 +6,7 @@ def gen_assembly(interm_lines, master_lookup):
         if func_name == "main":
             offset = 0
         else:
+            # Offset accounts for stack being 8 bits lower to make room for return adress
             offset = -8
         """ Converts individual TAC token to assembly equivelent"""
         if tok in reg_dict:     return reg_dict[tok]
@@ -27,6 +28,7 @@ def gen_assembly(interm_lines, master_lookup):
             assembly.append("  {}".format(string))
     func_stack = ["main"]
     params = []
+    num_called_params = 0
     # Define equivalent register names and set up start of assembly file
     assembly = []
     qpush("#   Setup stack/base pointer, base offset")
@@ -119,29 +121,29 @@ def gen_assembly(interm_lines, master_lookup):
                 ret_address = to_asm(tokens[0])
                 # Make rooom for base pointer
                 qpush("subq $8, %rsp")
+                # Push parameters
                 for param in params:
                     asm_param = to_asm(param)
-                    #push $1
                     qpush("subq $8, %rsp")
                     qpush("movl {}, %r15d".format(asm_param))
                     qpush("movl %r15d, 0(%rsp)".format(asm_param))
                 num_called_params = len(params)
-                #Push base pointer back way up
+                # Push base pointer back way up
                 qpush("movq %rbp, {}(%rsp)".format(8*len(params)))
-                #Make base pointer have new stack pointer value
+                # Make base pointer have new stack pointer value
                 qpush("movq %rsp, %rbp")
                 func_stack.append(func_name)
-                #call foo
+                # Call function
                 qpush("call {}".format(func_name))
                 func_stack.pop()
-                # mov esp, ebp
+                # Reset stack
                 qpush("movq %rbp, %rsp")
-                # pop ebp
-                qpush("movq {}(%rsp), %rbp".format(num_called_params*8))
-                qpush("addq $8, %rsp")
-                # %rsp needs to be moved up by # of params
+                # Clear out parameters
                 qpush("addq ${}, %rsp".format(num_called_params*8))
-                # Move edi to register
+                # Pop base (already moved pointer up)
+                qpush("movq 0(%rsp), %rbp")
+                qpush("addq $8, %rsp")
+                # Move return value to register
                 qpush("movl %edi, {}".format(ret_address))
                 params = []
                 qpush("#----------")
@@ -171,28 +173,27 @@ def gen_assembly(interm_lines, master_lookup):
             elif tokens[0] == "-->":
                 label = tokens[1]
                 qpush(label)
-            elif tokens[0] == "startFuncCall":
-                for arg in lookup:
-                    if "::" not in arg and arg not in mem_dict:
-                        mem_dict[arg] = len(mem_dict)
-            elif tokens[0] in ("end","popParamSpace"):
-                pass
             elif tokens[0] == "pushParam":
                 params.append(tokens[1])
             elif tokens[0] == "param":
                 mem_dict[tokens[1]] = len(mem_dict)
 
         elif len(tokens) == 1:
-            qpush(tokens[0])
-            # Move base pointer to stack pointer
-            func_name = tokens[0][:-1]
-            last_func = func_name
-            lookup = master_lookup[func_name]
-            mem_dict = {}
-            if func_name == "main":
+            if tokens[0] == "start":
                 for arg in lookup:
                     if "::" not in arg and arg not in mem_dict:
-                        mem_dict[arg] = len(mem_dict)
+                        mem_dict[arg] = len(mem_dict)+1
+            else:
+                qpush(tokens[0])
+                # Move base pointer to stack pointer
+                func_name = tokens[0][:-1]
+                last_func = func_name
+                lookup = master_lookup[func_name]
+                mem_dict = {}
+                if func_name == "main":
+                    for arg in lookup:
+                        if "::" not in arg and arg not in mem_dict:
+                            mem_dict[arg] = len(mem_dict)+1
     
                     
     return assembly

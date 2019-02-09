@@ -1,15 +1,13 @@
 # Todo
 HIGH PRIORITY
-- fix adding current temps to stack? (:())
+- fix adding current temps to stack?
 
 After
 - which data types?
-- user definable functions
 - printing
 - type checking (actually)
 - optimization
 - deal with many variables in ASM_gen (insufficient registers)
--fix gross master lookup format
 
 # Tokens
 We skip non-parsable tokens proactively for parse_statements & statement_AST, but not for expression_AST

@@ -20,12 +20,8 @@ def ast_to_IL(ast, master_lookup):
                 last_reg, sublines = exp_to_IL(r_count, statement.ret_val)
                 lines += sublines
                 if parent_func == "main":
-                    if int(memory):
-                        lines.append("end {}".format(memory))
                     lines.append("retmain {}".format(last_reg))
                 else:
-                    if int(memory):
-                        lines.append("end {}".format(memory))
                     lines.append("ret {}".format(last_reg))
                 break
 
@@ -86,9 +82,8 @@ def ast_to_IL(ast, master_lookup):
         lines_dict[function.name] = ["{}:".format(function.name)]
         for param_name, param_type in function.params[::-1]:
             lines_dict[function.name].append("param {}".format(param_name))    
-        lines_dict[function.name].append("startFuncCall {}".format(memory))
+        lines_dict[function.name].append("start")
         convert_body(function.name, function.body)
-        lines_dict[function.name].append("endFuncCall {}".format(memory))
         if function.name != "main":
             lines_dict[function.name].append("ret 0")
         else:

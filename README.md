@@ -3,9 +3,7 @@
 Caterpyl is a compiler I'm writing from scratch to compile a core subset of C into x86_64 assembly.
 
 Currently, it has the following features:
-- comments (start with `\\`)
-- main & user defined functions 
-(currently pretty buggy but works for select not-entirely-trivial recursive and multi-argument functions, so I think I'm probably 80% of the way there)
+- user defined functions (like `int my_func(){return 123;}`)
 - type declaration checking
 - a single type: `int` (for now)
 - variables, literals, expressions 
@@ -14,3 +12,4 @@ Currently, it has the following features:
 - arithmetic operators (`+`, `*`, `-`, `/`, `%`)
 - comparators (eg. `==`, `<`, `>`, `<=`, `>=`, `!=`)
 - control structures (`if`, `else`, `while`)
+- comments (start with `\\`)
