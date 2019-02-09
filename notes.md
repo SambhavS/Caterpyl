@@ -16,8 +16,8 @@ We skip non-parsable tokens proactively for parse_statements & statement_AST, bu
 
 
 # Call assembly
-as -arch x86_64 -o test.o test.asm ;
-ld -o test test.o 2> std.err ; ./test ; echo $?
+as -arch x86_64 -o test1.o test1.asm ;
+ld -o test1 test1.o 2> std.err ; ./test1 ; echo $?
 
 # Register allocation
 special registers: rbp (base), rsp (stack), eax (syscall?), edi (return?), r15d(for double memory references), rsi ()

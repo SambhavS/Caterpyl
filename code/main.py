@@ -6,13 +6,13 @@ import subprocess
 
 def main():
     # Read C
-    fname = "test.c"
+    fname = "test1.c"
     with open("../asm/{}".format(fname)) as f:
         contents = f.read()
 
     # Create & print AST
     master_lookup, ast = main_AST(contents, {})
-    print_tree(ast)
+    #print_tree(ast)
     
     # Convert AST and print resulting IL
     interm_dict = ast_to_IL(ast, master_lookup)   

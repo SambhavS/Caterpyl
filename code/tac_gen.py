@@ -82,15 +82,13 @@ def ast_to_IL(ast, master_lookup):
     lines_dict= dict()
     r_count = [1]
     for function in ast.children:
-        memory = len([i for i in master_lookup[function.name] if "::" not in i]) * 4
+        memory = len([i for i in master_lookup[function.name] if "::" not in i]) * 8
         lines_dict[function.name] = ["{}:".format(function.name)]
         for param_name, param_type in function.params[::-1]:
             lines_dict[function.name].append("param {}".format(param_name))    
-        if int(memory):
-            lines_dict[function.name].append("start {}".format(memory))
+        lines_dict[function.name].append("startFuncCall {}".format(memory))
         convert_body(function.name, function.body)
-        if int(memory):
-            lines_dict[function.name].append("end {}".format(memory))
+        lines_dict[function.name].append("endFuncCall {}".format(memory))
         if function.name != "main":
             lines_dict[function.name].append("ret 0")
         else:
@@ -136,7 +134,7 @@ def exp_to_IL(r_count, expression):
                 r_count[0] -= 1
             # allocate space for variables, push variables to registers?
             func_name = exp.called_func
-            param_space = len(regs) * 4
+            param_space = len(regs) * 8
             r_count[0] += 1
             r_name = "_t{}".format(r_count[0])
             lines.append("{} = call {}".format(r_name, func_name))

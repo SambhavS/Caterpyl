@@ -3,7 +3,7 @@ from utils import *
 def gen_assembly(interm_lines, master_lookup):
     """Converts TAC representation into valid x86_64 assembly. Returns lines of assembly"""
     def to_asm(tok):
-        if last_func == "main":
+        if func_name == "main":
             offset = 0
         else:
             offset = -8
@@ -14,7 +14,7 @@ def gen_assembly(interm_lines, master_lookup):
         elif tok in comps:      return comps[tok]
         elif tok in un_ops:     return un_ops[tok]
         elif is_int(tok):       return "${}".format(tok)
-        elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok] * -4 + offset)
+        elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok]* -8 + num_called_params*8 + offset)
         else:
             raise Exception("TypeError: Variable `{}` not declared".format(tok))
 
@@ -35,7 +35,7 @@ def gen_assembly(interm_lines, master_lookup):
     qpush("movq %rsp, %rbp")
 
     reg_dict = {"_t1": "%r8d", "_t2": "%r9d", "_t3": "%r10d", "_t4": "%r11d",
-                "_t5": "%r12d", "_t6": "%r13d", "_t7": "%r14d"}
+                "_t5": "%r12d", "_t6": "%r13d", "_t0": "%r14d"}
     opers = {"*":"imul", "-":"sub", "+":"add", "/":"div", "%":"div"}
     log_ops = {"&&":"and", "||":"or"}
     un_ops = {"!": "not"}
@@ -117,32 +117,32 @@ def gen_assembly(interm_lines, master_lookup):
                 qpush("#----------")
                 func_name = tokens[3]
                 ret_address = to_asm(tokens[0])
-                # Push base pointer
-                qpush("subq $4, %rsp")
-                qpush("movq %rbp, -4(%rsp)")
-                # Change base pointer
-                qpush("subq $4, %rsp")
-                qpush("movq %rsp, %rbp")
+                # Make rooom for base pointer
+                qpush("subq $8, %rsp")
                 for param in params:
                     asm_param = to_asm(param)
-                    qpush("subq $4, %rsp")
+                    #push $1
+                    qpush("subq $8, %rsp")
                     qpush("movl {}, %r15d".format(asm_param))
                     qpush("movl %r15d, 0(%rsp)".format(asm_param))
+                num_called_params = len(params)
+                #Push base pointer back way up
+                qpush("movq %rbp, {}(%rsp)".format(8*len(params)))
+                #Make base pointer have new stack pointer value
+                qpush("movq %rsp, %rbp")
                 func_stack.append(func_name)
+                #call foo
                 qpush("call {}".format(func_name))
                 func_stack.pop()
-                # Clean by moving stack up to child base pointer
+                # mov esp, ebp
                 qpush("movq %rbp, %rsp")
-                # Restore old base
-                qpush("addq $4, %rsp")
-                qpush("movq -4(%rsp), %rbp")
-                # Get stack back to original place
-                qpush("addq $4, %rsp")
+                # pop ebp
+                qpush("movq {}(%rsp), %rbp".format(num_called_params*8))
+                qpush("addq $8, %rsp")
+                # %rsp needs to be moved up by # of params
+                qpush("addq ${}, %rsp".format(num_called_params*8))
                 # Move edi to register
                 qpush("movl %edi, {}".format(ret_address))
-                # Clean pushed parameters
-                for param in params:
-                    qpush("subq $4, %rsp")
                 params = []
                 qpush("#----------")
 
@@ -171,23 +171,16 @@ def gen_assembly(interm_lines, master_lookup):
             elif tokens[0] == "-->":
                 label = tokens[1]
                 qpush(label)
-            elif tokens[0] == "start":
-                stack_space = tokens[1]
-                qpush("subq ${}, %rsp".format(stack_space))
+            elif tokens[0] == "startFuncCall":
                 for arg in lookup:
                     if "::" not in arg and arg not in mem_dict:
                         mem_dict[arg] = len(mem_dict)
-
             elif tokens[0] in ("end","popParamSpace"):
-                stack_space = tokens[1]
-                qpush("addq ${}, %rsp".format(stack_space))
+                pass
             elif tokens[0] == "pushParam":
-                reg = tokens[1]
-                params.append(reg)
+                params.append(tokens[1])
             elif tokens[0] == "param":
-                param = tokens[1]
-                mem_dict[param] = len(mem_dict) - 1
-
+                mem_dict[tokens[1]] = len(mem_dict)
 
         elif len(tokens) == 1:
             qpush(tokens[0])
@@ -196,6 +189,10 @@ def gen_assembly(interm_lines, master_lookup):
             last_func = func_name
             lookup = master_lookup[func_name]
             mem_dict = {}
+            if func_name == "main":
+                for arg in lookup:
+                    if "::" not in arg and arg not in mem_dict:
+                        mem_dict[arg] = len(mem_dict)
     
                     
     return assembly

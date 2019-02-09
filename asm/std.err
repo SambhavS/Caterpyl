@@ -1,2 +1,2 @@
 ld: warning: -macosx_version_min not specified, assuming 10.11
-ld: warning: object file (test.o) was built for newer OSX version (10.13) than being linked (10.11)
+ld: warning: object file (test1.o) was built for newer OSX version (10.13) than being linked (10.11)
