@@ -12,4 +12,4 @@ Currently, it has the following features:
 - arithmetic operators (`+`, `*`, `-`, `/`, `%`)
 - comparators (eg. `==`, `<`, `>`, `<=`, `>=`, `!=`)
 - control structures (`if`, `else`, `while`)
-- comments (start with `\\`)
+- comments (start with `//`)
