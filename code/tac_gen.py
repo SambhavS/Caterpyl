@@ -30,7 +30,7 @@ def ast_to_IL(ast, master_lookup):
                 if last_reg[:2] == "_t" and last_reg[2:] and is_int(last_reg[2:]):
                     r_count[0] -= 1
                 lines += sublines
-                lines.append("{} = {}".format(statement.var_name.name, last_reg))
+                lines.append("{} = {}".format(statement.var.name, last_reg))
 
             elif node_type(statement) == "if":
                 cond_reg, sublines = exp_to_IL(r_count, statement.cond)

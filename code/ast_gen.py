@@ -89,7 +89,7 @@ def main_AST(program, master_lookup):
                 expression = exp_AST(tokens, lookup)
                 check_skip(tokens, Tkn.semicolon, "Check `;`")
                 decl = Decl(var=variable, type_dec=type_dec, lookup=lookup)
-                assign = Assign(var_name=variable, exp=expression)
+                assign = Assign(var=variable, exp=expression, lookup=lookup)
                 subtree = Body([decl, assign])
 
             elif typ(tokens[1]) is Tkn.semicolon:
@@ -110,7 +110,7 @@ def main_AST(program, master_lookup):
                 expression = exp_AST(tokens, lookup)
                 check_skip(tokens, Tkn.semicolon, "Check `;`")
                 mod_expression = Expression(op_name=operator, oper1=variable, oper2=expression, lookup=lookup)
-                subtree = Assign(var_name=variable, exp=mod_expression)
+                subtree = Assign(var=variable, exp=mod_expression, lookup=lookup)
 
             elif typ(tokens[1]) is Tkn.equal:
                 """ Assignment"""
@@ -119,7 +119,7 @@ def main_AST(program, master_lookup):
                 check_skip(tokens, Tkn.equal, "Check `=`")
                 expression = exp_AST(tokens, lookup)
                 check_skip(tokens, Tkn.semicolon, "Check `;`")
-                subtree = Assign(var_name=variable, exp=expression)
+                subtree = Assign(var=variable, exp=expression, lookup=lookup)
             else:
                 print(typ(tokens[1]))
         else:
@@ -156,7 +156,7 @@ def main_AST(program, master_lookup):
             for op in ordered_operators:
                 while op in exp_lst:
                     ind = exp_lst.index(op)
-                    if op in UNOPS:
+                    if op in BOOL_UNOPS:
                         exp_lst[ind:ind+2] = [UnaryExpression(op_name=op, oper=exp_lst[ind-1], lookup=lookup)]
                     else:
                         exp_lst[ind-1:ind+2] = [Expression(op_name=op, oper1=exp_lst[ind-1], oper2=exp_lst[ind+1], lookup=lookup)]
@@ -194,7 +194,7 @@ def main_AST(program, master_lookup):
             i = ind+1
             while i < final_ind:
                 tok_type = typ(tokens[i])
-                if tok_type in Tkn.constants or tok_type is Tkn.var or tok_type is Tkn.binop:
+                if tok_type in Tkn.constants or tok_type is Tkn.var or tok_type in Tkn.binops:
                     children.append(wrapNode(tokens[i]))
                     i += 1
                 elif tok_type is Tkn.lparen:
@@ -204,7 +204,7 @@ def main_AST(program, master_lookup):
             if len(children) % 2 == 0:
                 raise Exception("Bad expression: binary operators must alternate")
             final_ind += 1
-            if typ(tokens[final_ind]) is Tkn.binop:
+            if typ(tokens[final_ind]) in Tkn.binops:
                 operator = tokens[final_ind]
                 final_ind += 1
                 second_exp_list, final_ind = raw_expression_list(tokens, lookup, final_ind)
@@ -234,7 +234,7 @@ def main_AST(program, master_lookup):
             # First expression is constant/variable
             val = wrapNode(tokens[ind])
             ind += 1
-            if typ(tokens[ind]) is Tkn.binop:
+            if typ(tokens[ind]) in (Tkn.both_binop, Tkn.bool_binop, Tkn.int_binop):
                 operator = tokens[ind]
                 ind += 1
                 second_exp_list, ind = raw_expression_list(tokens, lookup, ind)
@@ -242,8 +242,8 @@ def main_AST(program, master_lookup):
             elif typ(tokens[ind]) in [Tkn.semicolon, Tkn.rparen, Tkn.comma]:
                 return [val], ind
 
-        elif typ(tokens[ind]) is Tkn.unop or tokens[ind] == "-":
-            exp_list = [tokens[ind]] if typ(tokens[ind]) is Tkn.unop else [Const(0, int), tokens[ind]]
+        elif typ(tokens[ind]) is Tkn.bool_unop or tokens[ind] == "-":
+            exp_list = [tokens[ind]] if typ(tokens[ind]) is Tkn.bool_unop else [Const(0, int), tokens[ind]]
             operator = tokens[ind]
             ind += 1
             second_exp_list, ind = raw_expression_list(tokens, lookup, ind)
@@ -295,7 +295,7 @@ def main_AST(program, master_lookup):
             return Const(val, tok_type)
         elif tok_type is Tkn.var:
             return Var(val)
-        elif tok_type is Tkn.binop:
+        elif tok_type in Tkn.binops:
             return val
 
     def tokenize(string):

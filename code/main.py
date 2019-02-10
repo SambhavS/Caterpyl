@@ -20,11 +20,11 @@ def main():
     for key, line_sect in interm_dict.items():
         if key != "main":
             interm_lines += line_sect
-    print_IL(interm_lines)
+    #print_IL(interm_lines)
     
     # Generate and print assembly
     assembly = gen_assembly(interm_lines, master_lookup)
-    print_lst(assembly)
+    #print_lst(assembly)
     
     # Write generated assembly to file
     with open("../asm/{}.asm".format(fname.split(".")[0]), "w") as f_out:

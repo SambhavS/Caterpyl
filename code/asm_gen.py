@@ -14,6 +14,7 @@ def gen_assembly(interm_lines, master_lookup):
         elif tok in log_ops:    return log_ops[tok]
         elif tok in comps:      return comps[tok]
         elif tok in un_ops:     return un_ops[tok]
+        elif tok in bools:      return bools[tok]
         elif is_int(tok):       return "${}".format(tok)
         elif tok in mem_dict:   return "{}(%rbp)".format(mem_dict[tok]* -8 + num_called_params*8 + offset)
         else:
@@ -38,6 +39,7 @@ def gen_assembly(interm_lines, master_lookup):
 
     reg_dict = {"_t1": "%r8d", "_t2": "%r9d", "_t3": "%r10d", "_t4": "%r11d",
                 "_t5": "%r12d", "_t6": "%r13d", "_t0": "%r14d"}
+    bools = {"True": "$1", "False": "$0"}
     opers = {"*":"imul", "-":"sub", "+":"add", "/":"div", "%":"div"}
     log_ops = {"&&":"and", "||":"or"}
     un_ops = {"!": "not"}
@@ -169,6 +171,7 @@ def gen_assembly(interm_lines, master_lookup):
             elif tokens[0] == "ret":
                 source = to_asm(tokens[1])
                 qpush("movl {}, %edi".format(source))
+                print(mem_dict)
                 qpush("ret")
             elif tokens[0] == "-->":
                 label = tokens[1]
@@ -176,6 +179,7 @@ def gen_assembly(interm_lines, master_lookup):
             elif tokens[0] == "pushParam":
                 params.append(tokens[1])
             elif tokens[0] == "param":
+                num_called_params += 1
                 mem_dict[tokens[1]] = len(mem_dict)
 
         elif len(tokens) == 1:
@@ -185,6 +189,7 @@ def gen_assembly(interm_lines, master_lookup):
                         mem_dict[arg] = len(mem_dict)+1
             else:
                 qpush(tokens[0])
+                num_called_params = 0
                 # Move base pointer to stack pointer
                 func_name = tokens[0][:-1]
                 last_func = func_name

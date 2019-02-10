@@ -7,16 +7,21 @@ DIGITS = string_lib.digits
 WHITESPACE = " \n\t"
 ORDERED_OPS = ("!", "%", "*", "/", "+", "-", "<=", "!=", 
                   ">=", "<", ">", "==", "!=", "||", "&&")
-UNOPS = ("!",)
+BOOL_UNOPS = ("!",)
+BOTH_BINOPS = ("<=", ">=", "<", ">", "==", "!=")
+INT_BINOPS = ("%", "*", "/", "+", "-")
+BOOL_BINOPS = ("||", "&&")
 BINOPS = ("%", "*", "/", "+", "-", "<=", ">=", "<", ">", "==", "!=", "||", "&&")
-
 ################# Tkn Types ###################
 
 class Tkn:
     """Token name class"""
     var = "VARIABLE"
-    binop = "BINARY OPERATOR"
-    unop = "UNARY OPERATOR"
+    int_binop = "INTEGER BINARY OPERATOR"
+    bool_binop = "BOOLEAN BINARY OPERATOR"
+    both_binop = "BOOLEAN & INTEGER BINARY OPERATOR"
+    bool_unop = "BOOLEAN UNARY OPERATOR"
+    binops = (bool_binop, both_binop, int_binop)
 
     ifx = "IF KEYWORD"
     elsex = "ELSE KEYWORD"
@@ -25,10 +30,9 @@ class Tkn:
     prog_keywords = (ifx, elsex, whilex, returnx)
 
     intkey = "INT KEYWORD"
-    floatkey = "FLOAT KEYWORD"
-    charkey = "CHAR KEYWORD"
+    boolkey = "BOOL KEYWORD"
     voidkey = "VOID KEYWORD"
-    type_keys = (intkey, floatkey, charkey, voidkey)
+    type_keys = (intkey, boolkey, voidkey)
 
     lparen = "LEFT PAREN"
     rparen = "RIGHT PAREN"
@@ -41,11 +45,10 @@ class Tkn:
     special_chars = (lparen, rparen, semicolon, rbrack, lbrack, comma)
     
     intx = "INT"
-    floatx = "FLOAT"
-    charx = "CHAR"
-    constants = (intx, floatx, charx)
+    boolx = "BOOL"
+    constants = (intx, boolx)
 
-    get_type_keyword = {intx: intkey, floatkey: floatx, charx: charkey}
+    get_type_keyword = {intx: intkey, boolkey: boolx}
 
 def typ(token):
     """ Return type of token"""
@@ -54,8 +57,7 @@ def typ(token):
     elif token == "else":   return Tkn.elsex
     elif token == "return": return Tkn.returnx
     elif token == "int":    return Tkn.intkey
-    elif token == "float":  return Tkn.floatkey
-    elif token == "char":   return Tkn.charkey  
+    elif token == "bool":   return Tkn.boolkey
     elif token == "void":   return Tkn.voidkey
     elif token == ";":      return Tkn.semicolon
     elif token == "{":      return Tkn.lbrack
@@ -63,41 +65,39 @@ def typ(token):
     elif token == "(":      return Tkn.lparen
     elif token == ")":      return Tkn.rparen
     elif token == "=":      return Tkn.equal
-    elif token == ",":          return Tkn.comma
-    elif is_op_eq(token):    return Tkn.op_eq
+    elif token == ",":      return Tkn.comma
+    elif is_op_eq(token):   return Tkn.op_eq
     elif is_int(token):     return Tkn.intx
-    elif is_float(token):   return Tkn.floatx
-    elif is_char(token):    return Tkn.charx
-    elif is_bin_op(token):  return Tkn.binop
-    elif is_un_op(token):   return Tkn.unop
+    elif is_both_bin_op(token):  return Tkn.both_binop
+    elif is_int_bin_op(token):   return Tkn.int_binop
+    elif is_bool_bin_op(token):  return Tkn.bool_binop
+    elif is_bool_un_op(token):   return Tkn.bool_unop
+    elif is_bool(token):    return Tkn.boolx
     elif is_var(token):     return Tkn.var
 
 def is_op_eq(token):
     return len(token) == 2 and token[0] in ("+","-","/","*") and token[1] == "="
     
-def is_float(token):
-    try:
-        float(token)
-        return True
-    except:
-        return False
-
 def is_int(token):
     return all([c in DIGITS for c in token])
 
-def is_char(token):
-    if len(token) != 3:
-        return False
-    return token[0] == "'" and token[1] == "'"
+def is_bool(token):
+    return token in ("True", "False")
 
 def is_var(token):
     return all([c in VAR_CHARS for c in token])
 
-def is_bin_op(token):
-    return token in BINOPS
+def is_both_bin_op(token):
+    return token in BOTH_BINOPS
 
-def is_un_op(token):
-    return token in UNOPS
+def is_int_bin_op(token):
+    return token in INT_BINOPS
+
+def is_bool_bin_op(token):
+    return token in BOOL_BINOPS
+
+def is_bool_un_op(token):
+    return token in BOOL_UNOPS
 
 def attach(parent, child):
     child.parent = parent
@@ -105,24 +105,25 @@ def attach(parent, child):
 
 ########## AST Node Classes ###########
 def get_expression_type(exp, lookup):
-    if exp.op_name in BINOPS or UNOPS:
-        expected_type = "int"
-    if exp.op_name in UNOPS:
+    if exp.op_name in BOOL_UNOPS:
         oper_type = oper_type_dec(exp.oper, lookup).lower()
-        if oper_type == expected_type:
-            return expected_type
+        if oper_type == "bool":
+            return "BOOL"
         raise Exception("Type Error!")
     elif exp.op_name in BINOPS:
         oper_type1 = oper_type_dec(exp.oper1, lookup).lower()
         oper_type2 = oper_type_dec(exp.oper2, lookup).lower()
-        if oper_type1 == expected_type and oper_type2 == expected_type:
-            return expected_type
+        if exp.op_name in INT_BINOPS and oper_type1 == oper_type2 and oper_type1 == "int":
+            return "INT"
+        if exp.op_name in BOOL_BINOPS and oper_type1 == oper_type2 and oper_type1 == "bool":
+            return "BOOL"
+        if exp.op_name in BOTH_BINOPS and oper_type1 == oper_type2 and oper_type1 in ["int", "bool"]:
+            return "BOOL"
         raise Exception("Type Error!")
 
 def oper_type_dec(oper, lookup):
     n_type = node_type(oper).strip()
-    if n_type == "expression":  return oper.type_dec
-    elif n_type == "const":     return oper.val_type
+    if n_type in ("const", "expression"):  return oper.type_dec
     elif n_type == "var":       return lookup[oper.name]["type_dec"]
     elif n_type == "fnccall":   return oper.master_lookup[oper.called_func]["{}::TYPE_INFO".format(oper.called_func)]
 
@@ -143,6 +144,8 @@ class Func:
         self.name = name
         self.body = body
         lookup["{}::TYPE_INFO".format(name)] = {"type_dec": ret_type, "type":"func"}
+        if name == "main" and params:
+            raise Exception("Main function should not have parameters")
 
 class FncCall:
     def __init__(self, called_func, arguments, master_lookup):
@@ -181,9 +184,9 @@ class UnaryExpression:
 
 # Leaves
 class Const:
-    def __init__(self, val, val_type):
+    def __init__(self, val, type_dec):
         self.val = val
-        self.val_type = val_type
+        self.type_dec = type_dec
         
 
 class Var:
@@ -211,12 +214,17 @@ class While:
         self.true_body = true_body
 
 class Assign:
-    def __init__(self, var_name, exp):
+    def __init__(self, var, exp, lookup):
         self.children = []
-        attach(self, var_name)
+        attach(self, var)
         attach(self, exp)
-        self.var_name = var_name
+        self.var = var
         self.exp = exp
+        if var.name not in lookup:
+            raise Exception("Variable {} not declared".format(var.name))
+        var_type, exp_type = lookup[var.name]["type_dec"].lower(), exp.type_dec.lower()
+        if var_type != exp_type:
+            raise TypeError("Variable type ({}) doesn't match expression type ({})".format(var_type, exp_type))
 
 class Decl:
     def __init__(self, type_dec, var, lookup):
@@ -225,9 +233,9 @@ class Decl:
         self.type_dec = type_dec
         self.var = var
         if var.name not in lookup:
-            lookup[var.name] = {"type_dec": type_dec, "type":"func"}
+            lookup[var.name] = {"type_dec": type_dec, "type":"var"}
         else:
-            raise Exception("TypeError: `{}` already declared".format(var.name))
+            raise TypeError("`{}` already declared".format(var.name))
 
 class Return:
     def __init__(self, ret_val):

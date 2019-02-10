@@ -1,16 +1,10 @@
 # Todo
-HIGH PRIORITY
-- fix adding current temps to stack?
-
-After
-- which data types?
-- printing
-- type checking (actually)
+- *temp storage*
+- lists? 
+- break/continue
+- void functions
+- type checking
 - optimization
-- deal with many variables in ASM_gen (insufficient registers)
-
-# Tokens
-We skip non-parsable tokens proactively for parse_statements & statement_AST, but not for expression_AST
 
 
 # Call assembly
@@ -20,4 +14,3 @@ ld -o test1 test1.o 2> std.err ; ./test1 ; echo $?
 # Register allocation
 special registers: rbp (base), rsp (stack), eax (syscall?), edi (return?), r15d(for double memory references), rsi ()
 others: ebx, ecx, edx, r8d, r9d, r10d, r11d, r12d, r13d, r14d
-
