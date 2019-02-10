@@ -16,3 +16,7 @@ Currently, it supports the following features:
 
 ** Notes **
 - Language modified slightly to support `True` and `False` instead of `1` and `0` as booleans
+
+
+
+<img src="static/pic4.png" width="400"><img src="static/pic1.png" width="400">
