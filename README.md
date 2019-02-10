@@ -7,6 +7,7 @@ Currently, it has the following features:
 - type declaration checking
 - two types: `int` and `bool`
 - variables, literals, expressions 
+  
   (like `int x = 10;` and `int y = (2 * 10 + 7 * (3 + 1)) - 200;` and `bool broken = False`)
 - boolean operators (`&&`, `||`, `!`)
 - arithmetic operators (`+`, `*`, `-`, `/`, `%`)
