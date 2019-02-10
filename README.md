@@ -14,5 +14,5 @@ Currently, it supports the following features:
 - type checking
 
 
-* Notes *
+** Notes **
 - Language modified slightly to support `True` and `False` instead of `1` and `0` as booleans
