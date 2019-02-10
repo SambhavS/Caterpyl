@@ -1,6 +1,6 @@
 # Caterpyl
 
-Caterpyl is a compiler I'm writing from scratch to compile MIT Decaf, a C like language, into x86_64 assembly.
+Caterpyl is a compiler I'm writing from scratch to compile a core subset of C into x86_64 assembly.
 
 Currently, it has the following features:
 - user defined functions (like `int my_func(){return 123;}`)
