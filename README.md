@@ -23,4 +23,4 @@ Currently, it supports the following features:
 <img src="static/pic2.png" width="900">
 <img src="static/pic6.png" width="900">
 
-<img src="static/pic3.png" width="450"><img src="static/pic4.png" width="450"><img src="static/pic5.png" width="350">
+<img src="static/pic3.png" width="450"><img src="static/pic4.png" width="400"><img src="static/pic5.png" width="350">
