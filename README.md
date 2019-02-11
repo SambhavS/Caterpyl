@@ -17,9 +17,10 @@ Currently, it supports the following features:
 ** Notes **
 - Language modified slightly to support `True` and `False` instead of `1` and `0` as booleans
 
+## Some screenshots...
 
 <img src="static/pic1.png" width="900">
 <img src="static/pic2.png" width="900">
 <img src="static/pic6.png" width="900">
 
-<img src="static/pic3.png" width="250"><img src="static/pic4.png" width="250"><img src="static/pic5.png" width="250">
+<img src="static/pic3.png" width="290"><img src="static/pic4.png" width="290"><img src="static/pic5.png" width="290">
